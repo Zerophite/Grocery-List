@@ -472,9 +472,10 @@ const ITEM_EMOJI=[
   [["egg noodle","rice noodle"],"🍜"],[["rice vinegar"],"🍶"],[["sesame oil"],"🫒"],
   [["hot sauce","sriracha","franks red","tabasco","curry paste","chili paste"],"🌶️"],[["liquid smoke","liquid seasoning","maggi"],"🥫"],
   [["chicken stock","chicken broth"],"🍲"],[["corn tortilla","tortilla"],"🌮"],
+  [["whole chicken"],"🐔"],[["pork rib","pork chop","ribs","chop"],"🍖"],[["coconut milk","coconut"],"🥥"],
   [["fish ball"],"🍡"],[["salted egg"],"🥚"],[["egg"],"🥚"],
   [["chicken"],"🍗"],[["beef","chuck","steak"],"🥩"],
-  [["hotdog","sausage"],"🌭"],[["spam","bacon","ham","pork","ribs","chop"],"🥓"],
+  [["hotdog","sausage"],"🌭"],[["spam","bacon","ham","pork"],"🥓"],
   [["shrimp","prawn"],"🦐"],[["fish","sardine","tuna","salmon"],"🐟"],[["tofu"],"🍢"],
   [["milk"],"🥛"],[["butter"],"🧈"],[["cheese","mozzarella"],"🧀"],[["coconut"],"🥥"],[["cream"],"🍦"],
   [["broccoli"],"🥦"],[["carrot"],"🥕"],[["mushroom"],"🍄"],
@@ -517,6 +518,7 @@ const SPICE_COLORS=[
   [["tapioca starch","potato starch","cornstarch","tapioca","starch"],"#fafaf5"],
   [["baking soda","baking powder"],"#fafafa"],[["salt"],"#fcfcfc"],
   [["peanut butter powder"],"#c8a06a"],[["cocoa"],"#4e3524"],[["mung bean","mung"],"#7d8c3a"],
+  [["sundried tomato","sun dried tomato","sundried"],"#7a1f12"],[["dried cranberr","cranberr"],"#8a1c2b"],
 ];
 function spiceColor(name){
   const n=(name||"").toLowerCase();
@@ -533,7 +535,7 @@ function shades(hex){
   return {L:`#${_hx2(L(r))}${_hx2(L(g))}${_hx2(L(b))}`, B:`#${hex}`, D:`#${_hx2(D(r))}${_hx2(D(g))}${_hx2(D(b))}`};
 }
 // granular (visible grains) vs fine powder — drives the swatch texture
-const GRANULAR=["granulated","white sugar","brown sugar","raw sugar","salt","sesame","seed","fennel","coriander","mung","cube","kelp","peppercorn","black pepper","star anise","clove","cardamon","cardamom","bay leaf","flake","chili pepper"];
+const GRANULAR=["granulated","white sugar","brown sugar","raw sugar","salt","sesame","seed","fennel","coriander","mung","cube","kelp","peppercorn","black pepper","star anise","clove","cardamon","cardamom","bay leaf","flake","chili pepper","sundried","cranberr","raisin"];
 function isGranular(name){ const n=(name||"").toLowerCase(); if(/icing|powdered|powder|flour|starch|paprika|turmeric|cayenne|curry|cumin|cinnamon/.test(n)) return false; return GRANULAR.some(k=>n.includes(k)); }
 
 /* ---------- Liquid/bottle colours (sauces, oils, vinegars, wines, syrups) ---------- */
@@ -569,24 +571,210 @@ function bottleSVG(color){
     <path d="M9.7 8 Q9.7 7.4 10.2 7.4 v12.8 Q9.7 20.6 9.7 19.4 Z" fill="rgba(255,255,255,.3)"/>
   </svg>`;
 }
-// A tinted spice-mound (pile) icon, with grains when granular
+// A tinted spice-mound (pile) icon. Always textured (fine powder speckle); coarser grains when granular.
 function moundSVG(color, gran){
   const s=shades(color);
-  const speck = gran ? `<g><circle cx="9" cy="17.2" r=".55" fill="rgba(0,0,0,.22)"/><circle cx="13.4" cy="16.6" r=".55" fill="rgba(0,0,0,.22)"/><circle cx="15" cy="17.8" r=".5" fill="rgba(0,0,0,.2)"/><circle cx="11" cy="18.4" r=".5" fill="rgba(0,0,0,.2)"/><circle cx="10.4" cy="16.6" r=".45" fill="rgba(255,255,255,.6)"/><circle cx="14" cy="17.9" r=".45" fill="rgba(255,255,255,.55)"/><circle cx="12" cy="17.2" r=".45" fill="rgba(255,255,255,.5)"/></g>` : "";
+  // fine grain always — so even a powder like cayenne reads as a textured pile, not a glossy blob
+  const fine=`<g clip-path="url(#mc)"><g opacity="0.65">
+    <circle cx="8.6" cy="17" r=".32" fill="${s.D}"/><circle cx="10.2" cy="15.6" r=".28" fill="${s.L}"/>
+    <circle cx="11.6" cy="16.8" r=".32" fill="${s.D}"/><circle cx="13" cy="15.4" r=".28" fill="${s.L}"/>
+    <circle cx="14.2" cy="16.6" r=".3" fill="${s.D}"/><circle cx="15.4" cy="17.6" r=".28" fill="${s.L}"/>
+    <circle cx="9.4" cy="18.3" r=".3" fill="${s.L}"/><circle cx="12.4" cy="18" r=".32" fill="${s.D}"/>
+    <circle cx="10.8" cy="17.6" r=".28" fill="${s.L}"/><circle cx="13.6" cy="18" r=".3" fill="${s.L}"/>
+    <circle cx="12" cy="13.8" r=".28" fill="${s.D}"/><circle cx="11" cy="14.6" r=".26" fill="${s.L}"/>
+  </g></g>`;
+  const coarse = gran ? `<g clip-path="url(#mc)">
+    <circle cx="9.2" cy="17.2" r=".62" fill="${s.D}"/><circle cx="13.4" cy="16.5" r=".64" fill="${s.D}"/>
+    <circle cx="11.2" cy="18" r=".56" fill="${s.L}"/><circle cx="14.8" cy="17.9" r=".56" fill="${s.L}"/>
+    <circle cx="10.6" cy="16.2" r=".5" fill="${s.L}"/><circle cx="12.6" cy="16.9" r=".52" fill="${s.D}"/>
+    <circle cx="15.4" cy="16.4" r=".5" fill="${s.D}"/><circle cx="8.4" cy="18.2" r=".5" fill="${s.L}"/></g>` : "";
   return `<svg class="ficon" viewBox="0 0 24 24" aria-hidden="true">
+    <defs><clipPath id="mc"><path d="M2.8 19.2 Q12 4.6 21.2 19.2 Z"/></clipPath></defs>
     <ellipse cx="12" cy="19.6" rx="9.4" ry="1.9" fill="rgba(0,0,0,.16)"/>
     <path d="M2.8 19.2 Q12 4.6 21.2 19.2 Z" fill="${color}" stroke="${s.D}" stroke-width="0.5"/>
-    <path d="M12 6.4 Q7.6 12 6 18.8 Q12 16.4 12 6.4" fill="${s.L}" opacity="0.5"/>
-    ${speck}
+    <path d="M12 6.4 Q7.6 12 6 18.8 Q12 16.4 12 6.4" fill="${s.L}" opacity="0.4"/>
+    ${fine}${coarse}
   </svg>`;
+}
+// A tin-can icon (canned fish, condensed/evaporated milk, tomato paste/sauce)
+function canSVG(color){
+  const s=shades(color);
+  return `<svg class="ficon" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M5.5 6 h13 v13 a6.5 2 0 0 1 -13 0 Z" fill="${color}"/>
+    <ellipse cx="12" cy="6" rx="6.5" ry="2" fill="#cfd2ca"/>
+    <ellipse cx="12" cy="6" rx="6.5" ry="2" fill="none" stroke="rgba(0,0,0,.15)" stroke-width="0.5"/>
+    <ellipse cx="12" cy="4.6" rx="5.2" ry="1.3" fill="#e4e6df"/>
+    <rect x="5.5" y="10" width="13" height="5.4" fill="rgba(255,255,255,.82)"/>
+    <rect x="7" y="11.5" width="10" height="0.9" rx="0.4" fill="${s.D}"/>
+    <rect x="7" y="13.2" width="6.6" height="0.8" rx="0.4" fill="${s.D}" opacity="0.7"/>
+    <path d="M5.5 6 v13 a6.5 2 0 0 0 13 0 v-13" fill="none" stroke="rgba(0,0,0,.16)" stroke-width="0.6"/>
+    <rect x="5.5" y="6" width="1.4" height="13" fill="rgba(255,255,255,.18)"/>
+  </svg>`;
+}
+// Red sardine tin with a fish on the label
+function sardineCanSVG(){
+  return `<svg class="ficon" viewBox="0 0 24 24" aria-hidden="true">
+    <rect x="2.5" y="7" width="19" height="10.5" rx="2.6" fill="#cf2b28" stroke="#8f1a18" stroke-width="0.7"/>
+    <rect x="2.5" y="7" width="19" height="2.5" rx="1.2" fill="#e3a53f"/>
+    <ellipse cx="12" cy="12.9" rx="7" ry="3.3" fill="#f3ead2" stroke="#cbb98c" stroke-width="0.5"/>
+    <path d="M8 12.9 q2.6 -2.3 5.2 0 q-2.6 2.3 -5.2 0 Z" fill="#3f6aa0"/>
+    <path d="M12.9 12.9 l2.2 -1.5 v3 Z" fill="#3f6aa0"/>
+    <circle cx="9.1" cy="12.5" r="0.42" fill="#fff"/>
+    <circle cx="18.4" cy="8.25" r="1" fill="none" stroke="#a9791f" stroke-width="0.6"/>
+  </svg>`;
+}
+// Raw whole chicken (plucked, pink) lying down, two drumsticks up with bone tips + a wing
+function wholeChickenSVG(){
+  return `<svg class="ficon" viewBox="0 0 24 24" aria-hidden="true">
+    <ellipse cx="12" cy="20.6" rx="8.5" ry="1.3" fill="rgba(0,0,0,.12)"/>
+    <path d="M4.6 13.4 Q2.4 10.4 4.2 8.6 Q6.2 9.2 6.6 12.4 Z" fill="#f2b4a8" stroke="#d98f82" stroke-width="0.5"/>
+    <path d="M5 14.2 Q4.6 8.6 11 8 Q18.2 7.5 19.2 13.4 Q19.8 18.4 13 19 Q6 19.4 5 14.2 Z" fill="#f4b9ae" stroke="#dd9384" stroke-width="0.6"/>
+    <path d="M11.6 9 Q12.4 4.6 15 4.4 Q15.2 7.6 13.2 9.6 Z" fill="#f4b7ab" stroke="#dd9384" stroke-width="0.5"/>
+    <ellipse cx="14.9" cy="4.2" rx="1.3" ry="1.1" fill="#f6ecd8" stroke="#d8c7a0" stroke-width="0.4"/>
+    <path d="M14.2 9.1 Q16 4.8 18.6 5.2 Q18.2 8.2 15.6 10 Z" fill="#f2b0a4" stroke="#dd9384" stroke-width="0.5"/>
+    <ellipse cx="18.5" cy="5" rx="1.3" ry="1.1" fill="#f6ecd8" stroke="#d8c7a0" stroke-width="0.4"/>
+    <ellipse cx="9.5" cy="12" rx="2.6" ry="1.5" fill="#f9d3ca" opacity=".6"/>
+    <g fill="#dd9384" opacity=".5"><circle cx="9" cy="15" r=".28"/><circle cx="12" cy="16.2" r=".28"/><circle cx="14.2" cy="14.4" r=".28"/><circle cx="7.6" cy="13.4" r=".26"/></g>
+  </svg>`;
+}
+// Rack of ribs — meat band + rib fingers with white bone tips
+function ribsSVG(){
+  return `<svg class="ficon" viewBox="0 0 24 24" aria-hidden="true">
+    <ellipse cx="12" cy="20.8" rx="7" ry="1.1" fill="rgba(0,0,0,.12)"/>
+    <path d="M3.5 8.4 Q12 5.9 20.5 8.4 Q21.1 10.6 20 11.7 Q12 9.4 4 11.7 Q2.9 10.6 3.5 8.4 Z" fill="#bd3626" stroke="#8a2417" stroke-width="0.5"/>
+    <g fill="#cf5040" stroke="#8a2417" stroke-width="0.5">
+      <path d="M5 10.6 Q6.4 10.2 7.3 11 L7.1 16.4 Q6.1 17.1 5.2 16.4 Z"/>
+      <path d="M9 10.1 Q10.4 9.8 11.3 10.6 L11.1 17 Q10.1 17.7 9.2 17 Z"/>
+      <path d="M13 10.1 Q14.4 9.8 15.3 10.6 L15.1 17 Q14.1 17.7 13.2 17 Z"/>
+      <path d="M17 10.6 Q18.4 10.2 19.3 11 L19.1 16.4 Q18.1 17.1 17.2 16.4 Z"/>
+    </g>
+    <g fill="#f4ead2" stroke="#d5c39c" stroke-width="0.4">
+      <ellipse cx="6.15" cy="16.9" rx="1" ry="1.2"/><ellipse cx="10.15" cy="17.5" rx="1" ry="1.2"/>
+      <ellipse cx="14.15" cy="17.5" rx="1" ry="1.2"/><ellipse cx="18.15" cy="16.9" rx="1" ry="1.2"/>
+    </g>
+    <g stroke="#e07a68" stroke-width="0.8" stroke-linecap="round" opacity=".7"><path d="M6.1 11.6 V14.8"/><path d="M10.1 11.2 V15.2"/><path d="M14.1 11.2 V15.2"/><path d="M18.1 11.6 V14.8"/></g>
+  </svg>`;
+}
+// Two pork chops — pink meat, fat rim, round bone
+function porkChopSVG(){
+  return `<svg class="ficon" viewBox="0 0 24 24" aria-hidden="true">
+    <ellipse cx="12" cy="20.4" rx="8" ry="1.3" fill="rgba(0,0,0,.12)"/>
+    <path d="M12.5 5.8 Q19.2 5.8 20.4 11.6 Q21 16.6 14.6 17.8 Q9.4 18.4 9.2 12.8 Q9.6 7 12.5 5.8 Z" fill="#e6a596" stroke="#cf7d6b" stroke-width="0.5"/>
+    <path d="M8 8 Q14 7 15.6 12 Q16.6 17.2 10.4 18.6 Q4.4 19.2 4 13.6 Q4 9 8 8 Z" fill="#dd7263" stroke="#a84737" stroke-width="0.6"/>
+    <path d="M8 8 Q14 7 15.6 12 Q16.6 17.2 10.4 18.6 Q4.4 19.2 4 13.6 Q4 9 8 8 Z" fill="none" stroke="#f0d9c0" stroke-width="1.3" opacity=".75"/>
+    <ellipse cx="6.6" cy="13.6" rx="1.9" ry="2.3" fill="#f2e6cd" stroke="#d5c39c" stroke-width="0.4"/>
+    <ellipse cx="6.6" cy="13.6" rx="0.9" ry="1.1" fill="#dfcda4"/>
+    <ellipse cx="10.5" cy="11.5" rx="2" ry="1.2" fill="#ea9182" opacity=".6"/>
+  </svg>`;
+}
+// A single sun-dried tomato half — wrinkled dark-red shell, lighter flesh, seeds
+function driedTomatoSVG(){
+  return `<svg class="ficon" viewBox="0 0 24 24" aria-hidden="true">
+    <ellipse cx="12" cy="19.6" rx="7.5" ry="1.3" fill="rgba(0,0,0,.12)"/>
+    <path d="M4 12.4 Q4 7.9 9 6.7 Q14 5.7 18.4 8.2 Q20.9 10.2 19.9 14.2 Q18.4 18.2 12.9 18.7 Q6.4 19.2 4 14.7 Q3.5 13.3 4 12.4 Z" fill="#8f2016" stroke="#5c150d" stroke-width="0.6"/>
+    <path d="M6.6 12.3 Q7.1 9 11 8.4 Q15 7.8 17.5 10.2 Q18.5 12.6 17 15 Q14.5 16.8 10.6 16.5 Q7.1 16 6.6 12.3 Z" fill="#b23320"/>
+    <ellipse cx="12" cy="12.2" rx="3.6" ry="2.5" fill="#cc6f42" opacity=".75"/>
+    <g fill="#f0e2b0" stroke="#c9b478" stroke-width="0.2">
+      <ellipse cx="9.1" cy="11.1" rx=".7" ry=".45"/><ellipse cx="11.2" cy="10.4" rx=".7" ry=".45"/><ellipse cx="13.5" cy="10.7" rx=".7" ry=".45"/>
+      <ellipse cx="10.1" cy="13.5" rx=".7" ry=".45"/><ellipse cx="12.7" cy="13.7" rx=".7" ry=".45"/><ellipse cx="14.7" cy="12.5" rx=".7" ry=".45"/>
+      <ellipse cx="8.5" cy="13" rx=".6" ry=".4"/>
+    </g>
+    <g stroke="#5c150d" stroke-width="0.4" fill="none" opacity=".55"><path d="M5.6 11 Q5 13.2 6 15.2"/><path d="M18.4 10.6 Q19.4 13 18 15.6"/></g>
+  </svg>`;
+}
+// Bouillon: a small pile of foil-scored cubes (reads as "cubes", not one box)
+function cubeSVG(color){
+  const s=shades(color);
+  const cube=(cx,cy,h)=>`
+    <path d="M${cx} ${cy} L${cx+h} ${cy+h*0.55} L${cx} ${cy+h*1.1} L${cx-h} ${cy+h*0.55} Z" fill="${s.L}" stroke="${s.D}" stroke-width="0.45" stroke-linejoin="round"/>
+    <path d="M${cx-h} ${cy+h*0.55} L${cx} ${cy+h*1.1} L${cx} ${cy+h*2.2} L${cx-h} ${cy+h*1.65} Z" fill="${color}" stroke="${s.D}" stroke-width="0.45" stroke-linejoin="round"/>
+    <path d="M${cx+h} ${cy+h*0.55} L${cx} ${cy+h*1.1} L${cx} ${cy+h*2.2} L${cx+h} ${cy+h*1.65} Z" fill="${s.D}" stroke="${s.D}" stroke-width="0.45" stroke-linejoin="round"/>
+    <path d="M${cx-h*0.5} ${cy+h*0.275} L${cx+h*0.5} ${cy+h*0.825} M${cx+h*0.5} ${cy+h*0.275} L${cx-h*0.5} ${cy+h*0.825}" stroke="rgba(255,255,255,.4)" stroke-width="0.5"/>`;
+  return `<svg class="ficon" viewBox="0 0 24 24" aria-hidden="true">
+    <ellipse cx="12" cy="20.8" rx="8" ry="1.3" fill="rgba(0,0,0,.13)"/>
+    ${cube(8,8.5,3.4)}${cube(16,9.5,3.4)}${cube(12,11.5,3.6)}
+  </svg>`;
+}
+// Dry noodles — straight bundle, egg-noodle tangle, ramen nest, or ruffled lasagna sheets
+function noodleSVG(color, style){
+  const s=shades(color);
+  if(style==="sheets"){
+    const sheet=(dy,rot,fill)=>`<g transform="translate(0 ${dy}) rotate(${rot} 12 11)">
+      <path d="M3 7.5 q1.6 1.2 3.2 0 t3.2 0 t3.2 0 t3.2 0 t3.2 0 l0 3.2 q-1.6 1.2 -3.2 0 t-3.2 0 t-3.2 0 t-3.2 0 t-3.2 0 Z" fill="${fill}" stroke="#7a5f16" stroke-width="0.6" stroke-linejoin="round"/>
+      <g stroke="#b89a2e" stroke-width="0.5" opacity=".7"><path d="M6 8 l1.1 2.3"/><path d="M9.2 8 l1.1 2.3"/><path d="M12.4 8 l1.1 2.3"/><path d="M15.6 8 l1.1 2.3"/></g></g>`;
+    return `<svg class="ficon" viewBox="0 0 24 24" aria-hidden="true">${sheet(0,-4,color)}${sheet(3.3,3,s.L)}${sheet(6.6,-3,color)}</svg>`;
+  }
+  if(style==="tangle"){   // loose oval tangle — egg noodles
+    return `<svg class="ficon" viewBox="0 0 24 24" aria-hidden="true">
+      <g fill="none" stroke="${color}" stroke-width="0.9" stroke-linecap="round">
+        <path d="M4 12.5 Q7 8 12 10 Q17 12 20 10"/><path d="M4 11 Q9 15.5 14 12 Q18 9.5 20 13"/>
+        <path d="M5.5 15 Q11 12 12 16 Q13 18.5 18.5 15"/><path d="M6.5 8.5 Q10.5 12.5 8.5 17"/>
+        <path d="M15.5 8 Q13 12 17 16.5"/><path d="M7 8 Q12 10.5 18 8"/>
+        <path d="M6 16.5 Q12 13.5 19 16.5"/><path d="M11 7.6 Q10 12 12.5 17"/>
+      </g>
+      <g fill="none" stroke="${s.D}" stroke-width="0.35" stroke-linecap="round" opacity=".5"><path d="M5 12 Q10 15 15 12"/><path d="M8 9.5 Q12 12 16.5 9.5"/></g>
+    </svg>`;
+  }
+  if(style==="nest"){     // round nest ball — ramen
+    return `<svg class="ficon" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="8.6" fill="${s.L}"/>
+      <g fill="none" stroke="${color}" stroke-width="0.75" stroke-linecap="round">
+        <path d="M4.4 12 Q8 7.6 12 8.2 Q16 8.8 19.6 12"/><path d="M4.6 14.2 Q9 18.6 13 16.4 Q17 14.4 19.4 14.6"/>
+        <path d="M5.4 9.6 Q10 12.6 14.6 9.6 Q17.4 7.8 18.6 9.8"/><path d="M5.4 15.2 Q11 12 12 15.4 Q13 17.6 18 15.6"/>
+        <path d="M8 5.6 Q10 12 8.4 18.2"/><path d="M15.6 5.6 Q14 12 16 18.2"/><path d="M12 5.2 Q11.4 12 12 18.6"/>
+      </g>
+      <circle cx="12" cy="12" r="8.6" fill="none" stroke="${s.D}" stroke-width="0.6"/>
+    </svg>`;
+  }
+  // straight bundle (uncooked spaghetti / rice noodles / udon) with a tie band
+  return `<svg class="ficon" viewBox="0 0 24 24" aria-hidden="true">
+    <g stroke="${color}" stroke-width="1.5" stroke-linecap="round">
+      <path d="M6.5 3.5 V20.5"/><path d="M9.5 3 V21"/><path d="M12 3 V21"/><path d="M14.5 3 V21"/><path d="M17.5 3.5 V20.5"/>
+    </g>
+    <g stroke="${s.D}" stroke-width="0.5" opacity="0.45"><path d="M8 3.2 V20.8"/><path d="M13.2 3 V21"/><path d="M16 3.3 V20.7"/></g>
+    <rect x="4.6" y="10.7" width="14.8" height="2.6" rx="1.2" fill="rgba(110,74,20,.4)"/>
+  </svg>`;
+}
+function canColor(name){
+  const n=(name||"").toLowerCase();
+  if(/condensed milk|sweetened condensed/.test(n)) return "#efe1ba";
+  if(/evaporated milk/.test(n)) return "#ecece4";
+  if(/tomato paste/.test(n)) return "#a3260f";
+  if(/tomato sauce/.test(n)) return "#bf3016";
+  return null;
+}
+function cubeColor(name){
+  const n=(name||"").toLowerCase();
+  if(/beef cube|beef bouillon/.test(n)) return "#7a3f22";
+  if(/pork cube/.test(n)) return "#b06a4a";
+  if(/chicken cube|chicken bouillon|bouillon|stock cube/.test(n)) return "#caa23a";
+  return null;
+}
+function noodleInfo(name){
+  const n=(name||"").toLowerCase();
+  if(/spice|seasoning/.test(n)) return null;           // e.g. "noodle soup spices" is a spice packet
+  if(/lasagna/.test(n)) return {color:"#eccf5e",style:"sheets"};
+  if(/egg noodle/.test(n)) return {color:"#e6bf46",style:"tangle"};
+  if(/ramen/.test(n)) return {color:"#e2c050",style:"nest"};
+  if(/rice noodle|vermicelli|bihon|misua/.test(n)) return {color:"#efe7d6",style:"straight"};
+  if(/udon|somen/.test(n)) return {color:"#eee6d0",style:"straight"};
+  if(/spaghetti|macaroni|fettuccine|linguine|pasta|noodle/.test(n)) return {color:"#e9d29a",style:"straight"};
+  return null;
 }
 
 function itemThumb(it){
+  const n=(it.name||"").toLowerCase();
   if(it.photo) return `<img src="${it.photo}" alt="">`;
-  const bc=bottleColor(it.name);
-  if(bc) return bottleSVG(bc);
-  const sc=spiceColor(it.name);
-  if(sc) return moundSVG(sc, isGranular(it.name));
+  if(/sardine|canned fish/.test(n)) return sardineCanSVG();
+  if(/whole chicken/.test(n)) return wholeChickenSVG();
+  if(/\brib\b|ribs\b|rack/.test(n)) return ribsSVG();
+  if(/pork chop|\bchops?\b/.test(n)) return porkChopSVG();
+  if(/sundried|sun dried|sun-dried/.test(n)) return driedTomatoSVG();
+  const cc=canColor(it.name);   if(cc) return canSVG(cc);
+  const cu=cubeColor(it.name);  if(cu) return cubeSVG(cu);
+  const ni=noodleInfo(it.name); if(ni) return noodleSVG(ni.color, ni.style);
+  const bc=bottleColor(it.name);if(bc) return bottleSVG(bc);
+  const sc=spiceColor(it.name); if(sc) return moundSVG(sc, isGranular(it.name));
   return itemEmoji(it.name,it.category);
 }
 
