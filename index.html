@@ -83,15 +83,15 @@ main{padding:12px 12px 90px;max-width:640px;margin:0 auto}
 }
 .item .thumb img{width:100%;height:100%;object-fit:cover}
 .swatch{width:34px;height:34px;border-radius:50%;position:relative;
-  background:radial-gradient(circle at 34% 30%, color-mix(in srgb,var(--sc) 82%,#fff) 0%, var(--sc) 52%, color-mix(in srgb,var(--sc) 72%,#000) 100%);
-  box-shadow:inset 0 -2px 4px rgba(0,0,0,.18),inset 0 1px 2px rgba(255,255,255,.5),0 0 0 1px rgba(0,0,0,.08);}
+  background:radial-gradient(circle at 34% 30%, var(--scL) 0%, var(--sc) 52%, var(--scD) 100%);
+  box-shadow:inset 0 -2px 4px rgba(0,0,0,.22),inset 0 1px 2px rgba(255,255,255,.5),0 0 0 1px rgba(0,0,0,.1);}
 .swatch.gran{
   background-image:
     radial-gradient(circle at 28% 26%, rgba(255,255,255,.55) 0.6px, transparent 1.4px),
-    radial-gradient(circle at 62% 40%, rgba(0,0,0,.16) 0.6px, transparent 1.4px),
+    radial-gradient(circle at 62% 40%, rgba(0,0,0,.18) 0.6px, transparent 1.4px),
     radial-gradient(circle at 42% 68%, rgba(255,255,255,.5) 0.6px, transparent 1.4px),
-    radial-gradient(circle at 74% 66%, rgba(0,0,0,.14) 0.6px, transparent 1.4px),
-    radial-gradient(circle at 34% 30%, color-mix(in srgb,var(--sc) 84%,#fff) 0%, var(--sc) 55%, color-mix(in srgb,var(--sc) 74%,#000) 100%);
+    radial-gradient(circle at 74% 66%, rgba(0,0,0,.16) 0.6px, transparent 1.4px),
+    radial-gradient(circle at 34% 30%, var(--scL) 0%, var(--sc) 55%, var(--scD) 100%);
   background-size:6px 6px,7px 7px,5px 5px,8px 8px,100% 100%;}
 .item .body{flex:1;min-width:0}
 .item .nm{font-weight:700;font-size:15.5px;line-height:1.2;overflow:hidden;text-overflow:ellipsis}
@@ -218,12 +218,12 @@ main{padding:12px 12px 90px;max-width:640px;margin:0 auto}
 .toast .ti2{font-size:20px}
 
 .sub-hint{font-size:12px;color:var(--muted);margin:-4px 4px 10px;line-height:1.4}
-.micStage{display:flex;flex-direction:column;align-items:center;gap:14px;padding:20px 0 10px}
-.micCircle{width:100px;height:100px;border-radius:50%;background:linear-gradient(135deg,#42a5f5,#1e88e5);color:#fff;font-size:44px;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(30,136,229,.4)}
-.micCircle:active{transform:scale(.95)}
-.micCircle.live{background:linear-gradient(135deg,#ef5350,#e53935);animation:micpulse 1.2s infinite}
-@keyframes micpulse{0%{box-shadow:0 0 0 0 rgba(229,57,53,.5)}70%{box-shadow:0 0 0 24px rgba(229,57,53,0)}100%{box-shadow:0 0 0 0 rgba(229,57,53,0)}}
-.micLabel{font-size:15px;font-weight:700;color:var(--muted);text-align:center;min-height:22px;padding:0 10px}
+#voicePill{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(220px + env(safe-area-inset-bottom));z-index:70;display:none;align-items:center;gap:10px;background:#20241f;color:#fff;padding:10px 12px 10px 16px;border-radius:24px;box-shadow:0 6px 20px rgba(0,0,0,.3);max-width:88vw}
+#voicePill .vdot{width:11px;height:11px;border-radius:50%;background:#ef5350;flex:none;animation:micpulse 1.1s infinite}
+@keyframes micpulse{0%{box-shadow:0 0 0 0 rgba(239,83,80,.6)}70%{box-shadow:0 0 0 10px rgba(239,83,80,0)}100%{box-shadow:0 0 0 0 rgba(239,83,80,0)}}
+#voicePillText{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#voicePillStop{background:rgba(255,255,255,.16);color:#fff;font-weight:700;font-size:13px;padding:6px 12px;border-radius:16px;flex:none}
+#voicePillStop:active{background:rgba(255,255,255,.3)}
 .voicehelp{background:#e3f2fd;border-radius:12px;padding:12px 14px;font-size:13px;color:#0d47a1;line-height:1.6;margin-top:4px}
 .voicehelp code{background:rgba(255,255,255,.6);padding:1px 6px;border-radius:6px;font-weight:700}
 .summary{display:flex;gap:10px;margin:4px 4px 14px}
@@ -356,25 +356,11 @@ main{padding:12px 12px 90px;max-width:640px;margin:0 auto}
   </div>
 </div>
 
-<!-- ============ Voice sheet ============ -->
-<div class="scrim" id="voiceScrim">
-  <div class="sheet">
-    <div class="grab"></div>
-    <h2>🎙️ Voice Command</h2>
-    <div class="micStage">
-      <button class="micCircle" id="micCircle">🎙️</button>
-      <div class="micLabel" id="micLabel">Tap the mic and speak</div>
-    </div>
-    <div class="voicehelp">
-      Try saying:<br>
-      • <code>no more eggs</code> → moves Eggs to Grocery<br>
-      • <code>25 percent left on rice</code> → updates amount + adds to Grocery<br>
-      • <code>check butter</code> → tells you if it's in your pantry<br>
-      • <code>add olive oil</code> → adds a new pantry item
-    </div>
-    <button class="btn" id="btnVoiceStart" style="margin-top:14px">🎙️ Start Listening</button>
-    <button class="btn ghost" id="btnCancelVoice">Close</button>
-  </div>
+<!-- ============ Voice listening pill (compact, no modal) ============ -->
+<div id="voicePill">
+  <span class="vdot"></span>
+  <span id="voicePillText">Listening…</span>
+  <button id="voicePillStop">Stop</button>
 </div>
 
 <!-- ============ Camera ============ -->
@@ -444,27 +430,35 @@ function itemEmoji(name,cat){
 
 /* ---------- Real spice / sugar / flour colours (emoji can't tell them apart) ---------- */
 const SPICE_COLORS=[
-  [["turmeric"],"#e0a80d"],[["sweet paprika","paprika"],"#c33017"],[["cayenne"],"#b81e0e"],
-  [["chili powder","chili pepper","pepper flake","red curry","chili"],"#a51f12"],
-  [["curry powder","curry"],"#cc7a12"],[["cumin"],"#a1652f"],[["coriander"],"#b0913f"],
-  [["ground cinnamon","cinnamon"],"#7a3b12"],[["grated ginger","ginger"],"#cb9a5e"],
-  [["garlic powder"],"#e9dfc4"],[["onion powder"],"#e4cf9f"],
-  [["lemon pepper"],"#c9b24a"],[["black pepper","peppercorn"],"#2f2a26"],
-  [["italian seasoning","oregano","dried basil","basil","thyme","tarragon","ground sage","sage","bay leaf","savoury","parsley","herb"],"#4f7a35"],
-  [["fennel"],"#9caf6a"],[["star anise"],"#5a2f16"],[["whole cloves","clove"],"#4a2712"],
-  [["cardamon","cardamom"],"#6f7a44"],[["nutmeg"],"#7c4a2a"],[["dried kelp","kelp","seaweed"],"#2f5d3a"],
-  [["toasted sesame","sesame"],"#d9b877"],
-  [["icing sugar","powdered sugar"],"#ffffff"],[["brown sugar"],"#a9744f"],
-  [["white sugar","granulated","sugar"],"#f3efe6"],
+  [["turmeric"],"#e8a317"],[["sweet paprika","paprika"],"#b52b0b"],[["cayenne"],"#c0341a"],
+  [["chili powder","chili pepper","pepper flake","red curry","chili"],"#9e3b26"],
+  [["curry powder","curry"],"#cb8e1b"],[["cumin"],"#a58459"],[["coriander"],"#b8a55a"],
+  [["ground cinnamon","cinnamon"],"#954535"],[["grated ginger","ginger"],"#c9975b"],
+  [["garlic powder"],"#eae0c8"],[["onion powder"],"#e4d2a0"],
+  [["lemon pepper"],"#c9b24a"],[["black pepper","peppercorn"],"#33302b"],
+  [["italian seasoning","oregano","dried basil","basil","thyme","tarragon","ground sage","sage","bay leaf","savoury","parsley","herb"],"#4e6b2c"],
+  [["fennel"],"#9dae6b"],[["star anise"],"#5c2e12"],[["whole cloves","clove"],"#3d2410"],
+  [["cardamon","cardamom"],"#7a8b5a"],[["nutmeg"],"#7c4a2a"],[["dried kelp","kelp","seaweed"],"#2e5d3a"],
+  [["toasted sesame","sesame"],"#c9a063"],
+  [["icing sugar","powdered sugar"],"#ffffff"],[["brown sugar"],"#b07a45"],
+  [["white sugar","granulated","sugar"],"#f5f2ea"],
   [["all purpose flour","pizza flour","rice flour","semolina","flour"],"#f1e9d4"],
-  [["tapioca starch","potato starch","cornstarch","tapioca","starch"],"#fbfaf5"],
+  [["tapioca starch","potato starch","cornstarch","tapioca","starch"],"#fafaf5"],
   [["baking soda","baking powder"],"#fafafa"],[["salt"],"#fcfcfc"],
-  [["peanut butter powder"],"#c8a06a"],[["cocoa"],"#5b3a24"],[["mung bean","mung"],"#7d8c3a"],
+  [["peanut butter powder"],"#c8a06a"],[["cocoa"],"#4e3524"],[["mung bean","mung"],"#7d8c3a"],
 ];
 function spiceColor(name){
   const n=(name||"").toLowerCase();
   for(const [kws,c] of SPICE_COLORS){ for(const kw of kws){ if(n.includes(kw)) return c; } }
   return null;
+}
+// compute light/base/dark hex stops for the swatch (avoids CSS color-mix, unsupported on older iOS Safari)
+function _hx2(n){ n=Math.max(0,Math.min(255,Math.round(n))); return n.toString(16).padStart(2,"0"); }
+function shades(hex){
+  hex=hex.replace("#",""); if(hex.length===3) hex=hex.split("").map(c=>c+c).join("");
+  const r=parseInt(hex.slice(0,2),16),g=parseInt(hex.slice(2,4),16),b=parseInt(hex.slice(4,6),16);
+  const L=c=>c+(255-c)*0.45, D=c=>c*0.66;
+  return {L:`#${_hx2(L(r))}${_hx2(L(g))}${_hx2(L(b))}`, B:`#${hex}`, D:`#${_hx2(D(r))}${_hx2(D(g))}${_hx2(D(b))}`};
 }
 // granular (visible grains) vs fine powder — drives the swatch texture
 const GRANULAR=["granulated","white sugar","brown sugar","raw sugar","salt","sesame","seed","fennel","coriander","mung","cube","kelp","peppercorn","black pepper","star anise","clove","cardamon","cardamom","bay leaf","flake","chili pepper"];
@@ -473,7 +467,7 @@ function isGranular(name){ const n=(name||"").toLowerCase(); if(/icing|powdered|
 function itemThumb(it){
   if(it.photo) return `<img src="${it.photo}" alt="">`;
   const col=spiceColor(it.name);
-  if(col) return `<span class="swatch ${isGranular(it.name)?'gran':''}" style="--sc:${col}"></span>`;
+  if(col){ const s=shades(col); return `<span class="swatch ${isGranular(it.name)?'gran':''}" style="--scL:${s.L};--sc:${s.B};--scD:${s.D}"></span>`; }
   return itemEmoji(it.name,it.category);
 }
 
@@ -1233,75 +1227,52 @@ function fmt(y,mo,d){ if(mo<1||mo>12||d<1||d>31)return null; return `${y}-${Stri
 /* ============================================================
    VOICE COMMANDS  (Web Speech API)
    ============================================================ */
-const voiceScrim=$("#voiceScrim");
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-let recog=null, listening=false, manualStop=false, gotSpeech=false;
+let recog=null, wantListen=false, recogRunning=false, watchdog=null, vlabelT=null;
 
-function vlabel(t){ const el=$("#micLabel"); if(el) el.textContent=t; }
-function setMic(live){
-  const c=$("#micCircle");
-  if(c){ c.classList.toggle("live",live); c.textContent=live?"🔴":"🎙️"; }
-  $("#fabMic").classList.toggle("listening",live);
-  $("#btnVoiceStart").textContent = live ? "⏹ Stop" : "🎙️ Start Listening";
-}
+// Tapping the mic FAB toggles listening — no modal, no text box.
+function micToggle(){ wantListen ? voiceStop() : voiceStart(); }
+$("#fabMic").addEventListener("click",micToggle);
+$("#voicePillStop").addEventListener("click",voiceStop);
 
-function openVoice(){
-  if(!SR){ toast("Voice needs Chrome or Android (not supported in this browser)","warn"); return; }
-  voiceScrim.classList.add("on");
-  startVoice();   // auto-start inside the tap gesture (required by iOS)
-}
-$("#fabMic").addEventListener("click",openVoice);
-$("#micCircle").addEventListener("click",()=>{ listening?stopVoice():startVoice(); });
-$("#btnVoiceStart").addEventListener("click",()=>{ listening?stopVoice():startVoice(); });
-$("#btnCancelVoice").addEventListener("click",()=>{ stopVoice(); voiceScrim.classList.remove("on"); });
-voiceScrim.addEventListener("click",e=>{ if(e.target===voiceScrim){ stopVoice(); voiceScrim.classList.remove("on"); } });
+function showPill(t){ const p=$("#voicePill"); if(p){ $("#voicePillText").textContent=t; p.style.display="flex"; } }
+function hidePill(){ const p=$("#voicePill"); if(p) p.style.display="none"; }
+function vlabel(t){ showPill(t); clearTimeout(vlabelT); vlabelT=setTimeout(()=>{ if(wantListen) showPill("🎧 Listening…"); },2600); }
 
-function startVoice(){
-  if(!SR){ toast("Voice not supported here","warn"); return; }
-  if(listening) return;                     // ignore double taps
-  manualStop=false; listening=true; gotSpeech=false;
-  setMic(true); vlabel("🎧 Listening… say a command");
-  spinUpRecog();
+function voiceStart(){
+  if(!SR){ toast("Voice needs Chrome or Android (not supported here)","warn"); return; }
+  if(wantListen) return;
+  wantListen=true;
+  $("#fabMic").classList.add("listening");
+  showPill("🎧 Listening…");
+  if(!localStorage.getItem("voice_hint")){ toast('Say: “no more eggs” · “25% left on rice” · “check butter”',"good"); localStorage.setItem("voice_hint","1"); }
+  spinUp();
+  clearInterval(watchdog);
+  watchdog=setInterval(()=>{ if(wantListen && !recogRunning) spinUp(); },2500); // revive if the engine dies
 }
-function spinUpRecog(){
-  try{ recog=new SR(); }catch(e){ listening=false; setMic(false); vlabel("Couldn't start voice"); return; }
+function spinUp(){
+  if(!wantListen) return;
+  try{ recog=new SR(); }catch(e){ return; }           // fresh recognizer each cycle = far more stable
   recog.lang="en-US"; recog.continuous=true; recog.interimResults=false; recog.maxAlternatives=3;
-  recog.onstart=()=>{ if(listening) vlabel("🎧 Listening… say a command"); };
-  recog.onspeechstart=()=>{ gotSpeech=true; };
+  recog.onstart=()=>{ recogRunning=true; };
   recog.onresult=(ev)=>{
     for(let i=ev.resultIndex;i<ev.results.length;i++){
-      if(ev.results[i].isFinal){
-        const txt=ev.results[i][0].transcript.trim();
-        if(txt) handleVoice(txt.toLowerCase(), txt);
-      }
+      if(ev.results[i].isFinal){ const t=ev.results[i][0].transcript.trim(); if(t) handleVoice(t.toLowerCase(), t); }
     }
   };
   recog.onerror=(e)=>{
-    // 'aborted' & 'no-speech' fire randomly on mobile and are harmless — ignore, keep listening
-    if(e.error==="no-speech"||e.error==="aborted") return;
-    if(e.error==="not-allowed"||e.error==="service-not-allowed"){
-      manualStop=true; listening=false; setMic(false);
-      vlabel("🎤 Allow microphone access, then tap again");
-      toast("Microphone is blocked — enable mic access for this site","bad");
-    }else if(e.error==="network"){
-      vlabel("🌐 Voice needs an internet connection");
-    }
+    if(e.error==="not-allowed"||e.error==="service-not-allowed"){ toast("Microphone blocked — enable mic access for this site","bad"); voiceStop(); }
+    // no-speech / aborted / network: ignore — onend + watchdog restart
   };
-  recog.onend=()=>{
-    if(listening && !manualStop){
-      try{ recog.start(); }                 // keep the session alive (works on Chrome/Android)
-      catch(e){ listening=false; setMic(false); vlabel("Tap the mic to speak again"); }
-    }else{
-      listening=false; setMic(false);
-      if(!$("#micLabel") || /Listening/.test($("#micLabel").textContent)) vlabel("Tap the mic to speak");
-    }
-  };
-  try{ recog.start(); }catch(e){ /* start race — onend/onerror recovers */ }
+  recog.onend=()=>{ recogRunning=false; if(wantListen){ try{ recog.start(); }catch(e){ /* watchdog will retry with a fresh one */ } } };
+  try{ recog.start(); }catch(e){ /* start race — watchdog recovers */ }
 }
-function stopVoice(){
-  manualStop=true; listening=false;
-  if(recog){ try{ recog.stop(); }catch(e){} }
-  setMic(false); vlabel("Tap the mic to speak");
+function voiceStop(){
+  wantListen=false; recogRunning=false;
+  clearInterval(watchdog); clearTimeout(vlabelT);
+  if(recog){ try{ recog.onend=null; recog.stop(); }catch(e){} recog=null; }
+  $("#fabMic").classList.remove("listening");
+  hidePill();
 }
 
 function findItemByName(q){
@@ -1462,7 +1433,6 @@ function enableSwipeClose(sheet, closeFn){
 }
 enableSwipeClose($("#itemSheet"), closeItemSheet);
 enableSwipeClose($("#noteScrim .sheet"), ()=>noteScrim.classList.remove("on"));
-enableSwipeClose($("#voiceScrim .sheet"), ()=>{ stopVoice(); voiceScrim.classList.remove("on"); });
 
 /* ============================================================
    INIT
