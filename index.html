@@ -82,6 +82,7 @@ main{padding:12px 12px 90px;max-width:640px;margin:0 auto}
   display:flex;align-items:center;justify-content:center;font-size:22px;overflow:hidden;position:relative;
 }
 .item .thumb img{width:100%;height:100%;object-fit:cover}
+.ficon{width:34px;height:34px;display:block}
 .swatch{width:34px;height:34px;border-radius:50%;position:relative;
   background:radial-gradient(circle at 34% 30%, var(--scL) 0%, var(--sc) 52%, var(--scD) 100%);
   box-shadow:inset 0 -2px 4px rgba(0,0,0,.22),inset 0 1px 2px rgba(255,255,255,.5),0 0 0 1px rgba(0,0,0,.1);}
@@ -235,6 +236,19 @@ main{padding:12px 12px 90px;max-width:640px;margin:0 auto}
 .summary .snum{font-size:22px;font-weight:800;color:var(--green-d)}
 .summary .slab{font-size:11px;color:var(--muted);font-weight:600;margin-top:2px;text-transform:uppercase;letter-spacing:.4px}
 .linkbtn{color:var(--green);font-weight:700;background:none}
+.setblock{margin:6px 0 20px}
+.setlabel{font-size:12.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.catrow{display:flex;align-items:center;gap:8px;padding:9px 10px;background:#fafbf9;border:1.5px solid var(--line);border-radius:12px;margin-bottom:7px}
+.catrow .cico{font-size:18px;width:24px;text-align:center;flex:none}
+.catrow .cnm{flex:1;font-weight:700;font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.catrow .cnt{font-size:11px;color:var(--muted);font-weight:600}
+.catrow button{width:30px;height:30px;border-radius:8px;font-size:15px;color:var(--muted);flex:none}
+.catrow button:active{background:var(--line)}
+.catrow .cdel{color:var(--red)}
+.addcat{display:flex;gap:8px;align-items:center;margin-top:4px}
+.addcat input{padding:11px 12px;border-radius:11px;border:1.5px solid var(--line);background:#fafbf9;outline:none;width:100%}
+.setrow{display:flex;align-items:center;justify-content:space-between;gap:10px;font-weight:600;font-size:14.5px}
+.setrow select{flex:0 0 auto;padding:9px 10px;border-radius:10px;border:1.5px solid var(--line);background:#fafbf9}
 </style>
 </head>
 <body>
@@ -244,6 +258,7 @@ main{padding:12px 12px 90px;max-width:640px;margin:0 auto}
     <div class="htitle"><span class="emoji" id="hEmoji">🥫</span><span id="hTitle">Pantry</span></div>
     <button class="hbtn" id="btnClearChecked" title="Clear checked" style="display:none">🧹</button>
     <button class="hbtn" id="btnSort" title="Sort">⇅</button>
+    <button class="hbtn" id="btnSettings" title="Settings">⚙️</button>
   </div>
   <div class="searchwrap">
     <span class="sicon">🔍</span>
@@ -362,6 +377,48 @@ main{padding:12px 12px 90px;max-width:640px;margin:0 auto}
   </div>
 </div>
 
+<!-- ============ Settings sheet ============ -->
+<div class="scrim" id="settingsScrim">
+  <div class="sheet" id="settingsSheet">
+    <div class="grab"></div>
+    <h2>⚙️ Settings</h2>
+
+    <div class="setblock">
+      <div class="setlabel">Categories</div>
+      <div class="sub-hint" style="margin:0 0 8px">Items auto-sort into these. Drag order with ▲▼, tap ✏️ to rename, ✕ to delete (its items move to “Other”).</div>
+      <div id="catList"></div>
+      <div class="addcat">
+        <input id="newCatIcon" maxlength="2" placeholder="🍎" style="flex:0 0 52px;text-align:center">
+        <input id="newCatName" placeholder="New category name">
+        <button class="chip" id="btnAddCat" style="flex:0 0 auto">＋ Add</button>
+      </div>
+    </div>
+
+    <div class="setblock">
+      <div class="setlabel">Backup &amp; data</div>
+      <div class="sub-hint" style="margin:0 0 8px">Your list lives only on this device. Export a backup before clearing your browser, or to move to another phone.</div>
+      <div class="btnrow">
+        <button class="btn sec" id="btnExport">⬇️ Export backup</button>
+        <button class="btn sec" id="btnImport">⬆️ Import backup</button>
+      </div>
+    </div>
+
+    <div class="setblock">
+      <div class="setlabel">Display</div>
+      <label class="setrow"><span>Default sort</span>
+        <select id="setSort"><option value="category">Category</option><option value="name">Name (A–Z)</option><option value="low">Running low first</option><option value="expiry">Expiring first</option></select>
+      </label>
+    </div>
+
+    <div class="setblock">
+      <div class="setlabel" style="color:var(--red)">Danger zone</div>
+      <button class="btn danger" id="btnReset">Reset everything (re-seed from scratch)</button>
+    </div>
+
+    <button class="btn ghost" id="btnCloseSettings">Done</button>
+  </div>
+</div>
+
 <!-- ============ Voice listening pill (compact, no modal) ============ -->
 <div id="voicePill">
   <span class="vdot"></span>
@@ -395,15 +452,19 @@ const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const todayISO=()=>new Date().toISOString().slice(0,10);
 
 /* ---------- Categories ---------- */
-const CATS=[
+const DEFAULT_CATS=[
   ["Protein","🥩"],["Fruit/Veggies","🥬"],["Dairy/Non-Dairy","🥛"],["Baking","🧁"],
   ["Seasonings","🌿"],["Cooking Spices","🧂"],["Sauces/Oils","🫙"],
   ["Condiments","🥫"],["Canned/Soup","🍲"],["Pasta/Grains/Noodles","🍜"],
   ["Frozen","🧊"],["Dried","🍇"],["Beverages","🥤"],
   ["Supplements","💊"],["Other","📦"]
 ];
-const CAT_ICON=Object.fromEntries(CATS);
-const CAT_ORDER=CATS.map(c=>c[0]);
+let CAT_ORDER=[], CAT_ICON={};
+function rebuildCats(){
+  if(!state.cats || !state.cats.length) state.cats=DEFAULT_CATS.map(([name,icon])=>({name,icon}));
+  CAT_ORDER=state.cats.map(c=>c.name);
+  CAT_ICON=Object.fromEntries(state.cats.map(c=>[c.name,c.icon]));
+}
 
 /* ---------- Per-item emoji (so eggs ≠ beef) ---------- */
 const ITEM_EMOJI=[
@@ -475,10 +536,57 @@ function shades(hex){
 const GRANULAR=["granulated","white sugar","brown sugar","raw sugar","salt","sesame","seed","fennel","coriander","mung","cube","kelp","peppercorn","black pepper","star anise","clove","cardamon","cardamom","bay leaf","flake","chili pepper"];
 function isGranular(name){ const n=(name||"").toLowerCase(); if(/icing|powdered|powder|flour|starch|paprika|turmeric|cayenne|curry|cumin|cinnamon/.test(n)) return false; return GRANULAR.some(k=>n.includes(k)); }
 
+/* ---------- Liquid/bottle colours (sauces, oils, vinegars, wines, syrups) ---------- */
+const BOTTLE_COLORS=[
+  [["chinese dark soy","dark soy"],"#2a1a10"],[["sweet soy","kecap manis"],"#2b1a10"],
+  [["soy sauce","kikkoman","shoyu"],"#3b2415"],[["fish sauce"],"#c48a2a"],[["oyster sauce"],"#3d2716"],
+  [["hoisin"],"#3a241a"],[["sriracha","hot sauce","franks","tabasco","chili sauce"],"#c0341a"],
+  [["worcestershire"],"#4a2c17"],[["liquid smoke"],"#3a2416"],[["liquid seasoning","knorr","maggi"],"#2e1c12"],
+  [["tempura","dipping sauce"],"#5a3a20"],[["ketchup","catsup"],"#b52b0b"],[["mustard"],"#cba829"],
+  [["mayonnaise","mayo"],"#f3ecc9"],[["bbq","barbecue"],"#6b2e18"],
+  [["sesame oil"],"#a8611a"],[["extra virgin","olive oil"],"#a6b024"],[["oil","canola","cooking spray","vegetable oil"],"#e6c34a"],
+  [["red wine vinegar","balsamic"],"#5a1f2a"],[["vinegar"],"#ece5cc"],
+  [["red cooking wine"],"#7a2233"],[["shaoxing","cooking wine","sake","mirin","rice wine","white cooking"],"#cf9a34"],
+  [["wine"],"#b07a45"],[["honey"],"#d8a51a"],[["molasses"],"#2a1708"],[["maple","syrup"],"#7a3f16"],
+  [["gochujang","chili paste","curry paste","shrimp paste"],"#a5281a"],[["koji"],"#ece2c8"],
+  [["sauce"],"#7a4a2a"],
+];
+function bottleColor(name){
+  const n=(name||"").toLowerCase();
+  if(/cheese|cream|salted|tomato sauce|tomato paste/.test(n)) return null;   // these aren't bottled liquids (ketchup still is)
+  for(const [kws,c] of BOTTLE_COLORS){ for(const kw of kws){ if(n.includes(kw)) return c; } }
+  return null;
+}
+// A tinted sauce/oil bottle icon
+function bottleSVG(color){
+  return `<svg class="ficon" viewBox="0 0 24 24" aria-hidden="true">
+    <rect x="9.5" y="1.6" width="5" height="2.6" rx="0.8" fill="#6f7368"/>
+    <rect x="10.1" y="4" width="3.8" height="2.4" fill="#aeb3a4"/>
+    <path d="M8.4 9.2 Q8.4 6.6 10 6.6 h4 Q15.6 6.6 15.6 9.2 v10.4 Q15.6 22.2 13.4 22.2 h-2.8 Q8.4 22.2 8.4 19.6 Z" fill="${color}" stroke="rgba(0,0,0,.2)" stroke-width="0.6"/>
+    <rect x="9.3" y="12.2" width="6.4" height="4.6" rx="1" fill="rgba(255,255,255,.8)"/>
+    <rect x="10.2" y="13.4" width="4.6" height="0.7" rx="0.35" fill="rgba(0,0,0,.28)"/>
+    <rect x="10.2" y="14.8" width="3.4" height="0.6" rx="0.3" fill="rgba(0,0,0,.2)"/>
+    <path d="M9.7 8 Q9.7 7.4 10.2 7.4 v12.8 Q9.7 20.6 9.7 19.4 Z" fill="rgba(255,255,255,.3)"/>
+  </svg>`;
+}
+// A tinted spice-mound (pile) icon, with grains when granular
+function moundSVG(color, gran){
+  const s=shades(color);
+  const speck = gran ? `<g><circle cx="9" cy="17.2" r=".55" fill="rgba(0,0,0,.22)"/><circle cx="13.4" cy="16.6" r=".55" fill="rgba(0,0,0,.22)"/><circle cx="15" cy="17.8" r=".5" fill="rgba(0,0,0,.2)"/><circle cx="11" cy="18.4" r=".5" fill="rgba(0,0,0,.2)"/><circle cx="10.4" cy="16.6" r=".45" fill="rgba(255,255,255,.6)"/><circle cx="14" cy="17.9" r=".45" fill="rgba(255,255,255,.55)"/><circle cx="12" cy="17.2" r=".45" fill="rgba(255,255,255,.5)"/></g>` : "";
+  return `<svg class="ficon" viewBox="0 0 24 24" aria-hidden="true">
+    <ellipse cx="12" cy="19.6" rx="9.4" ry="1.9" fill="rgba(0,0,0,.16)"/>
+    <path d="M2.8 19.2 Q12 4.6 21.2 19.2 Z" fill="${color}" stroke="${s.D}" stroke-width="0.5"/>
+    <path d="M12 6.4 Q7.6 12 6 18.8 Q12 16.4 12 6.4" fill="${s.L}" opacity="0.5"/>
+    ${speck}
+  </svg>`;
+}
+
 function itemThumb(it){
   if(it.photo) return `<img src="${it.photo}" alt="">`;
-  const col=spiceColor(it.name);
-  if(col){ const s=shades(col); return `<span class="swatch ${isGranular(it.name)?'gran':''}" style="--scL:${s.L};--sc:${s.B};--scD:${s.D}"></span>`; }
+  const bc=bottleColor(it.name);
+  if(bc) return bottleSVG(bc);
+  const sc=spiceColor(it.name);
+  if(sc) return moundSVG(sc, isGranular(it.name));
   return itemEmoji(it.name,it.category);
 }
 
@@ -615,6 +723,7 @@ function load(){
   if(!state.items.length && !localStorage.getItem(KEY+"_seeded")){ seed(); localStorage.setItem(KEY+"_seeded","1"); }
   seedGroceryV1();
   migrateCatV2();
+  rebuildCats();
 }
 
 /* One-time: rename old "Spices" category to "Seasonings" for existing users */
@@ -783,7 +892,7 @@ function itemCardHTML(it,mode){
   if(mode==="grocery"){ sub.push(`<span class="pill cat">${catIco} ${it.category}</span>`); }
   if(it.qty) sub.push(`<span>${escapeHtml(it.qty)}</span>`);
   if(fs){ sub.push(`<span class="pill ${fs.level==='bad'?'bad':fs.level==='warn'?'warn':'ok'}">${fs.level==='ok'?'🟢':fs.level==='warn'?'⏳':'⚠️'} ${fs.label}</span>`); }
-  if(mode!=="grocery" && it.opened) sub.push(`<span class="pill info">📂 Opened</span>`);
+  if(mode!=="grocery" && it.opened) sub.push(`<button class="pill openpill" data-unopen="${it.id}">📂 Opened ✕</button>`);
   else if(mode!=="grocery" && !it.opened && shelfLife(it.name)) sub.push(`<button class="pill openpill" data-open="${it.id}">📂 Mark open</button>`);
   if(it.store && it.store!=="pantry" && mode!=="grocery") sub.push(`<span class="pill info">${it.store==='fridge'?'❄️ Fridge':'🧊 Freezer'}</span>`);
 
@@ -936,6 +1045,8 @@ document.addEventListener("click",e=>{
   if(filt){ const f=filt.dataset.filter; activeFilter = (f==="all"||activeFilter===f) ? null : f; renderPantry(); return; }
   const openb=e.target.closest("[data-open]");
   if(openb){ markOpened(openb.dataset.open); return; }
+  const unopenb=e.target.closest("[data-unopen]");
+  if(unopenb){ markUnopened(unopenb.dataset.unopen); return; }
   const move=e.target.closest("[data-move]");
   if(move){ moveItem(move.dataset.move); return; }
   const check=e.target.closest("[data-check]");
@@ -953,6 +1064,12 @@ function markOpened(id){
   save(); renderAll();
   const fs=freshStatus(it);
   toast(fs?`📂 “${it.name}” opened · best used within ${fs.daysLeft} day(s)`:`📂 “${it.name}” marked opened`,"good");
+}
+function markUnopened(id){
+  const it=getItem(id); if(!it) return;
+  it.opened=null;
+  save(); renderAll();
+  toast(`↩︎ “${it.name}” marked unopened`,"good");
 }
 function moveItem(id){
   const it=getItem(id); if(!it) return;
@@ -1016,14 +1133,16 @@ let editingId=null;
 const itemScrim=$("#itemScrim");
 // populate category select
 const fCat=$("#fCat");
-CAT_ORDER.forEach(c=>{ const o=document.createElement("option");o.value=c;o.textContent=`${CAT_ICON[c]} ${c}`;fCat.appendChild(o); });
+function populateCatSelect(){ fCat.innerHTML=""; CAT_ORDER.forEach(c=>{ const o=document.createElement("option");o.value=c;o.textContent=`${CAT_ICON[c]} ${c}`;fCat.appendChild(o); }); }
 
 function openItemSheet(id){
   editingId=id||null;
+  populateCatSelect();
   const it=id?getItem(id):null;
   $("#itemSheetTitle").textContent=it?"Edit Item":"Add Item";
   $("#fName").value=it?it.name:"";
   $("#fCat").value=it?it.category:autoCategory("");
+  $("#chipOpenToday").textContent = (it&&it.opened) ? "✕ Mark unopened" : "📂 Opened today";
   $("#fPct").value=it&&it.percent!=null?it.percent:100;
   $("#fQty").value=it?it.qty:"";
   $("#fExp").value=it?(it.exp||""):"";
@@ -1073,8 +1192,9 @@ $("#fExp").addEventListener("change",updateFreshInfo);
 $("#fOpen").addEventListener("change",updateFreshInfo);
 $("#chipOpenToday").addEventListener("click",()=>{
   const el=$("#fOpen");
-  if(el.value===todayISO()){ el.value=""; toast("Marked as unopened","good"); }   // toggle off
+  if(el.value){ el.value=""; toast("Marked as unopened","good"); }   // any opened date → clear it
   else { el.value=todayISO(); }
+  $("#chipOpenToday").textContent = el.value ? "✕ Mark unopened" : "📂 Opened today";
   updateFreshInfo();
 });
 
@@ -1578,6 +1698,110 @@ function enableSwipeClose(sheet, closeFn){
 }
 enableSwipeClose($("#itemSheet"), closeItemSheet);
 enableSwipeClose($("#noteScrim .sheet"), ()=>noteScrim.classList.remove("on"));
+enableSwipeClose($("#settingsSheet"), ()=>settingsScrim.classList.remove("on"));
+
+/* ============================================================
+   SETTINGS
+   ============================================================ */
+const settingsScrim=$("#settingsScrim");
+$("#btnSettings").addEventListener("click",openSettings);
+$("#btnCloseSettings").addEventListener("click",()=>settingsScrim.classList.remove("on"));
+settingsScrim.addEventListener("click",e=>{ if(e.target===settingsScrim) settingsScrim.classList.remove("on"); });
+
+function openSettings(){ renderCatList(); $("#setSort").value=state.settings.sort||"category"; settingsScrim.classList.add("on"); }
+
+function renderCatList(){
+  const host=$("#catList");
+  host.innerHTML=state.cats.map((c,i)=>{
+    const count=state.items.filter(it=>it.category===c.name).length;
+    return `<div class="catrow" data-i="${i}">
+      <span class="cico">${c.icon||"📦"}</span>
+      <span class="cnm">${escapeHtml(c.name)}</span>
+      <span class="cnt">${count}</span>
+      <button data-cup="${i}" title="Up">▲</button>
+      <button data-cdown="${i}" title="Down">▼</button>
+      <button data-crename="${i}" title="Rename">✏️</button>
+      <button class="cdel" data-cdelete="${i}" title="Delete">✕</button>
+    </div>`;
+  }).join("");
+}
+function catsChanged(){ rebuildCats(); save(); renderCatList(); renderAll(); }
+
+$("#catList").addEventListener("click",e=>{
+  const up=e.target.closest("[data-cup]"), down=e.target.closest("[data-cdown]");
+  const ren=e.target.closest("[data-crename]"), del=e.target.closest("[data-cdelete]");
+  if(up){ const i=+up.dataset.cup; if(i>0){ [state.cats[i-1],state.cats[i]]=[state.cats[i],state.cats[i-1]]; catsChanged(); } return; }
+  if(down){ const i=+down.dataset.cdown; if(i<state.cats.length-1){ [state.cats[i+1],state.cats[i]]=[state.cats[i],state.cats[i+1]]; catsChanged(); } return; }
+  if(ren){ const i=+ren.dataset.crename; const c=state.cats[i];
+    const nn=prompt("Rename category:",c.name); if(nn===null) return; const name=nn.trim(); if(!name) return;
+    if(state.cats.some((x,j)=>j!==i && x.name.toLowerCase()===name.toLowerCase())){ toast("A category with that name exists","warn"); return; }
+    const ic=prompt("Emoji for “"+name+"”:",c.icon||"📦"); const icon=(ic===null?c.icon:(ic.trim()||c.icon));
+    const old=c.name; c.name=name; c.icon=icon;
+    state.items.forEach(it=>{ if(it.category===old) it.category=name; });   // keep items attached
+    catsChanged(); toast("Category updated","good"); return;
+  }
+  if(del){ const i=+del.dataset.cdelete; const c=state.cats[i];
+    if(c.name==="Other"){ toast("“Other” can't be deleted","warn"); return; }
+    const count=state.items.filter(it=>it.category===c.name).length;
+    if(!confirm(`Delete “${c.name}”?${count?` Its ${count} item(s) will move to “Other”.`:""}`)) return;
+    state.items.forEach(it=>{ if(it.category===c.name) it.category="Other"; });
+    state.cats.splice(i,1);
+    if(!state.cats.some(x=>x.name==="Other")) state.cats.push({name:"Other",icon:"📦"});
+    catsChanged(); toast("Category deleted","good"); return;
+  }
+});
+$("#btnAddCat").addEventListener("click",()=>{
+  const name=$("#newCatName").value.trim(); const icon=$("#newCatIcon").value.trim()||"📦";
+  if(!name){ toast("Enter a category name","warn"); return; }
+  if(state.cats.some(c=>c.name.toLowerCase()===name.toLowerCase())){ toast("That category already exists","warn"); return; }
+  // insert before "Other" so Other stays last
+  const oi=state.cats.findIndex(c=>c.name==="Other");
+  state.cats.splice(oi<0?state.cats.length:oi,0,{name,icon});
+  $("#newCatName").value=""; $("#newCatIcon").value="";
+  catsChanged(); toast(`Added “${name}”`,"good");
+});
+
+$("#setSort").addEventListener("change",()=>{ state.settings.sort=$("#setSort").value; save(); renderAll(); });
+
+/* Export / Import / Reset */
+$("#btnExport").addEventListener("click",()=>{
+  const data=JSON.stringify({v:1,exported:new Date().toISOString(),state},null,2);
+  const blob=new Blob([data],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url; a.download=`pantry-backup-${todayISO()}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  toast("Backup downloaded","good");
+});
+const importInput=document.createElement("input");
+importInput.type="file"; importInput.accept="application/json,.json"; importInput.style.display="none";
+document.body.appendChild(importInput);
+$("#btnImport").addEventListener("click",()=>importInput.click());
+importInput.addEventListener("change",()=>{
+  const f=importInput.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    try{
+      const j=JSON.parse(rd.result);
+      const s=j.state||j;
+      if(!s.items||!Array.isArray(s.items)) throw 0;
+      if(!confirm(`Import ${s.items.length} item(s)? This replaces your current list.`)) return;
+      state=Object.assign({items:[],notes:[],settings:{sort:"category"}},s);
+      rebuildCats(); save(); renderCatList(); renderAll();
+      toast("Backup imported ✓","good");
+    }catch(e){ toast("That file isn't a valid backup","bad"); }
+    importInput.value="";
+  };
+  rd.readAsText(f);
+});
+$("#btnReset").addEventListener("click",()=>{
+  if(!confirm("Erase everything and re-seed the starter pantry? This cannot be undone.")) return;
+  [KEY, KEY+"_seeded", KEY+"_gro_v1", KEY+"_cat_v2", "voice_hint"].forEach(k=>localStorage.removeItem(k));
+  state={items:[],notes:[],settings:{sort:"category"}};
+  load(); renderCatList(); renderAll();
+  toast("Reset complete","good");
+});
 
 /* ============================================================
    INIT
