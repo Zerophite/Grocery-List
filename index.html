@@ -82,6 +82,17 @@ main{padding:12px 12px 90px;max-width:640px;margin:0 auto}
   display:flex;align-items:center;justify-content:center;font-size:22px;overflow:hidden;position:relative;
 }
 .item .thumb img{width:100%;height:100%;object-fit:cover}
+.swatch{width:34px;height:34px;border-radius:50%;position:relative;
+  background:radial-gradient(circle at 34% 30%, color-mix(in srgb,var(--sc) 82%,#fff) 0%, var(--sc) 52%, color-mix(in srgb,var(--sc) 72%,#000) 100%);
+  box-shadow:inset 0 -2px 4px rgba(0,0,0,.18),inset 0 1px 2px rgba(255,255,255,.5),0 0 0 1px rgba(0,0,0,.08);}
+.swatch.gran{
+  background-image:
+    radial-gradient(circle at 28% 26%, rgba(255,255,255,.55) 0.6px, transparent 1.4px),
+    radial-gradient(circle at 62% 40%, rgba(0,0,0,.16) 0.6px, transparent 1.4px),
+    radial-gradient(circle at 42% 68%, rgba(255,255,255,.5) 0.6px, transparent 1.4px),
+    radial-gradient(circle at 74% 66%, rgba(0,0,0,.14) 0.6px, transparent 1.4px),
+    radial-gradient(circle at 34% 30%, color-mix(in srgb,var(--sc) 84%,#fff) 0%, var(--sc) 55%, color-mix(in srgb,var(--sc) 74%,#000) 100%);
+  background-size:6px 6px,7px 7px,5px 5px,8px 8px,100% 100%;}
 .item .body{flex:1;min-width:0}
 .item .nm{font-weight:700;font-size:15.5px;line-height:1.2;overflow:hidden;text-overflow:ellipsis}
 .item .sub{font-size:12px;color:var(--muted);margin-top:3px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
@@ -139,8 +150,8 @@ main{padding:12px 12px 90px;max-width:640px;margin:0 auto}
 .scrim.on{display:flex}
 .sheet{
   background:var(--card);width:100%;max-width:640px;border-radius:22px 22px 0 0;
-  max-height:92vh;overflow-y:auto;padding:8px 18px calc(24px + env(safe-area-inset-bottom));
-  animation:slideup .25s ease;
+  max-height:92vh;overflow-y:auto;overflow-x:hidden;padding:8px 18px calc(24px + env(safe-area-inset-bottom));
+  animation:slideup .25s ease;touch-action:pan-y;
 }
 @keyframes slideup{from{transform:translateY(40px);opacity:.6}to{transform:translateY(0);opacity:1}}
 .grab{width:44px;height:5px;background:var(--line);border-radius:3px;margin:2px auto 10px;box-sizing:content-box;padding:9px 40px;background-clip:content-box;cursor:pointer}
@@ -207,6 +218,12 @@ main{padding:12px 12px 90px;max-width:640px;margin:0 auto}
 .toast .ti2{font-size:20px}
 
 .sub-hint{font-size:12px;color:var(--muted);margin:-4px 4px 10px;line-height:1.4}
+.micStage{display:flex;flex-direction:column;align-items:center;gap:14px;padding:20px 0 10px}
+.micCircle{width:100px;height:100px;border-radius:50%;background:linear-gradient(135deg,#42a5f5,#1e88e5);color:#fff;font-size:44px;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(30,136,229,.4)}
+.micCircle:active{transform:scale(.95)}
+.micCircle.live{background:linear-gradient(135deg,#ef5350,#e53935);animation:micpulse 1.2s infinite}
+@keyframes micpulse{0%{box-shadow:0 0 0 0 rgba(229,57,53,.5)}70%{box-shadow:0 0 0 24px rgba(229,57,53,0)}100%{box-shadow:0 0 0 0 rgba(229,57,53,0)}}
+.micLabel{font-size:15px;font-weight:700;color:var(--muted);text-align:center;min-height:22px;padding:0 10px}
 .voicehelp{background:#e3f2fd;border-radius:12px;padding:12px 14px;font-size:13px;color:#0d47a1;line-height:1.6;margin-top:4px}
 .voicehelp code{background:rgba(255,255,255,.6);padding:1px 6px;border-radius:6px;font-weight:700}
 .summary{display:flex;gap:10px;margin:4px 4px 14px}
@@ -344,7 +361,10 @@ main{padding:12px 12px 90px;max-width:640px;margin:0 auto}
   <div class="sheet">
     <div class="grab"></div>
     <h2>🎙️ Voice Command</h2>
-    <div id="voiceStatus" style="text-align:center;font-size:15px;color:var(--muted);padding:18px 0;min-height:60px">Tap the mic and speak…</div>
+    <div class="micStage">
+      <button class="micCircle" id="micCircle">🎙️</button>
+      <div class="micLabel" id="micLabel">Tap the mic and speak</div>
+    </div>
     <div class="voicehelp">
       Try saying:<br>
       • <code>no more eggs</code> → moves Eggs to Grocery<br>
@@ -385,7 +405,7 @@ const todayISO=()=>new Date().toISOString().slice(0,10);
 /* ---------- Categories ---------- */
 const CATS=[
   ["Protein","🥩"],["Fruit/Veggies","🥬"],["Dairy/Non-Dairy","🥛"],["Baking","🧁"],
-  ["Spices","🌶️"],["Cooking Spices","🧂"],["Sauces/Oils","🫙"],
+  ["Seasonings","🌿"],["Cooking Spices","🧂"],["Sauces/Oils","🫙"],
   ["Condiments","🥫"],["Canned/Soup","🍲"],["Pasta/Grains/Noodles","🍜"],
   ["Frozen","🧊"],["Dried","🍇"],["Beverages","🥤"],
   ["Supplements","💊"],["Other","📦"]
@@ -422,13 +442,48 @@ function itemEmoji(name,cat){
   return CAT_ICON[cat]||"📦";
 }
 
+/* ---------- Real spice / sugar / flour colours (emoji can't tell them apart) ---------- */
+const SPICE_COLORS=[
+  [["turmeric"],"#e0a80d"],[["sweet paprika","paprika"],"#c33017"],[["cayenne"],"#b81e0e"],
+  [["chili powder","chili pepper","pepper flake","red curry","chili"],"#a51f12"],
+  [["curry powder","curry"],"#cc7a12"],[["cumin"],"#a1652f"],[["coriander"],"#b0913f"],
+  [["ground cinnamon","cinnamon"],"#7a3b12"],[["grated ginger","ginger"],"#cb9a5e"],
+  [["garlic powder"],"#e9dfc4"],[["onion powder"],"#e4cf9f"],
+  [["lemon pepper"],"#c9b24a"],[["black pepper","peppercorn"],"#2f2a26"],
+  [["italian seasoning","oregano","dried basil","basil","thyme","tarragon","ground sage","sage","bay leaf","savoury","parsley","herb"],"#4f7a35"],
+  [["fennel"],"#9caf6a"],[["star anise"],"#5a2f16"],[["whole cloves","clove"],"#4a2712"],
+  [["cardamon","cardamom"],"#6f7a44"],[["nutmeg"],"#7c4a2a"],[["dried kelp","kelp","seaweed"],"#2f5d3a"],
+  [["toasted sesame","sesame"],"#d9b877"],
+  [["icing sugar","powdered sugar"],"#ffffff"],[["brown sugar"],"#a9744f"],
+  [["white sugar","granulated","sugar"],"#f3efe6"],
+  [["all purpose flour","pizza flour","rice flour","semolina","flour"],"#f1e9d4"],
+  [["tapioca starch","potato starch","cornstarch","tapioca","starch"],"#fbfaf5"],
+  [["baking soda","baking powder"],"#fafafa"],[["salt"],"#fcfcfc"],
+  [["peanut butter powder"],"#c8a06a"],[["cocoa"],"#5b3a24"],[["mung bean","mung"],"#7d8c3a"],
+];
+function spiceColor(name){
+  const n=(name||"").toLowerCase();
+  for(const [kws,c] of SPICE_COLORS){ for(const kw of kws){ if(n.includes(kw)) return c; } }
+  return null;
+}
+// granular (visible grains) vs fine powder — drives the swatch texture
+const GRANULAR=["granulated","white sugar","brown sugar","raw sugar","salt","sesame","seed","fennel","coriander","mung","cube","kelp","peppercorn","black pepper","star anise","clove","cardamon","cardamom","bay leaf","flake","chili pepper"];
+function isGranular(name){ const n=(name||"").toLowerCase(); if(/icing|powdered|powder|flour|starch|paprika|turmeric|cayenne|curry|cumin|cinnamon/.test(n)) return false; return GRANULAR.some(k=>n.includes(k)); }
+
+function itemThumb(it){
+  if(it.photo) return `<img src="${it.photo}" alt="">`;
+  const col=spiceColor(it.name);
+  if(col) return `<span class="swatch ${isGranular(it.name)?'gran':''}" style="--sc:${col}"></span>`;
+  return itemEmoji(it.name,it.category);
+}
+
 /* ---------- Auto-categorization ---------- */
 // keyword -> category (checked as substring, longest first)
 const CAT_RULES=[
   [["chicken","beef","pork","fish ball","shrimp","sardine","egg","chuck","ribs","bacon","sausage","turkey","ham","tofu","salmon","tuna"],"Protein"],
   [["milk","butter","cheese","yogurt","cream","mozzarella","condensed","evaporated"],"Dairy/Non-Dairy"],
   [["flour","sugar","baking","cornstarch","starch","cinnamon","honey","icing","yeast","cocoa","vanilla","molasses","semolina","coffee","mccafe","peanut butter powder"],"Baking"],
-  [["paprika","cayenne","cumin","curry powder","chili powder","garlic powder","onion powder","italian seasoning","lemon pepper","basil","oregano","thyme","pepper flakes","chili pepper"],"Spices"],
+  [["paprika","cayenne","cumin","curry powder","chili powder","garlic powder","onion powder","italian seasoning","lemon pepper","basil","oregano","thyme","pepper flakes","chili pepper"],"Seasonings"],
   [["bay leaf","cube","coriander","kelp","fennel","sage","star anise","tarragon","turmeric","cardamon","cardamom","clove","ginger","cinnamon stick"],"Cooking Spices"],
   [["oil","vinegar","soy sauce","fish sauce","oyster sauce","cooking wine","sake","mirin","sriracha","hot sauce","worcestershire","liquid smoke","sesame","shaoxing","koji","liquid seasoning","cooking spray","sweet soy"],"Sauces/Oils"],
   [["mustard","ketchup","mayonnaise","pickle","peperoncini","curry paste","sundried","bbq"],"Condiments"],
@@ -485,6 +540,16 @@ function load(){
   try{const raw=localStorage.getItem(KEY); if(raw){state=Object.assign(state,JSON.parse(raw));}}catch(e){}
   if(!state.items.length && !localStorage.getItem(KEY+"_seeded")){ seed(); localStorage.setItem(KEY+"_seeded","1"); }
   seedGroceryV1();
+  migrateCatV2();
+}
+
+/* One-time: rename old "Spices" category to "Seasonings" for existing users */
+function migrateCatV2(){
+  if(localStorage.getItem(KEY+"_cat_v2")) return;
+  let changed=false;
+  state.items.forEach(i=>{ if(i.category==="Spices"){ i.category="Seasonings"; changed=true; } });
+  localStorage.setItem(KEY+"_cat_v2","1");
+  if(changed) save();
 }
 
 /* One-time: add the grocery list from the user's screenshots (runs once for existing users too) */
@@ -565,11 +630,11 @@ function seed(){
     S("Mirin","Sauces/Oils",null,"2"),S("Oyster Sauce","Sauces/Oils",100),
     S("Red Cooking Wine","Sauces/Oils",100),
     // Spices
-    S("Onion Powder","Spices",100),S("Cayenne Powder","Spices",100),
-    S("Chili Peppers / Pepper Flakes","Spices",100),S("Chili Powder","Spices",100),
-    S("Cumin","Spices",null),S("Curry Powder","Spices",100),S("Dried Basil","Spices",null),
-    S("Dried Oregano","Spices",null),S("Dried Thyme","Spices",null),S("Garlic Powder","Spices",null),
-    S("Italian Seasoning","Spices",100),S("Lemon Pepper Seasoning","Spices",100),S("Sweet Paprika","Spices",null),
+    S("Onion Powder","Seasonings",100),S("Cayenne Powder","Seasonings",100),
+    S("Chili Peppers / Pepper Flakes","Seasonings",100),S("Chili Powder","Seasonings",100),
+    S("Cumin","Seasonings",null),S("Curry Powder","Seasonings",100),S("Dried Basil","Seasonings",null),
+    S("Dried Oregano","Seasonings",null),S("Dried Thyme","Seasonings",null),S("Garlic Powder","Seasonings",null),
+    S("Italian Seasoning","Seasonings",100),S("Lemon Pepper Seasoning","Seasonings",100),S("Sweet Paprika","Seasonings",null),
     // Cooking Spices
     S("Bay Leaf","Cooking Spices",100),S("Beef Cubes","Cooking Spices",100),S("Brown Sugar","Cooking Spices",100),
     S("Cinnamon Sticks","Cooking Spices",100),S("Coriander","Cooking Spices",100),S("Dried Kelp","Cooking Spices",100),
@@ -639,7 +704,7 @@ function pctClass(p){ if(p==null) return ""; if(p<=25) return "low"; if(p<=60) r
 function itemCardHTML(it,mode){
   const fs=freshStatus(it);
   const catIco=CAT_ICON[it.category]||"📦";
-  const thumb=it.photo?`<img src="${it.photo}" alt="">`:itemEmoji(it.name,it.category);
+  const thumb=itemThumb(it);
   let sub=[];
   if(mode==="grocery"){ sub.push(`<span class="pill cat">${catIco} ${it.category}</span>`); }
   if(it.qty) sub.push(`<span>${escapeHtml(it.qty)}</span>`);
@@ -1170,65 +1235,73 @@ function fmt(y,mo,d){ if(mo<1||mo>12||d<1||d>31)return null; return `${y}-${Stri
    ============================================================ */
 const voiceScrim=$("#voiceScrim");
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-let recog=null, listening=false, manualStop=false, restartTimer=null;
+let recog=null, listening=false, manualStop=false, gotSpeech=false;
 
-$("#fabMic").addEventListener("click",()=>{
-  if(!SR){ toast("Voice not supported in this browser (try Chrome)","warn"); return; }
+function vlabel(t){ const el=$("#micLabel"); if(el) el.textContent=t; }
+function setMic(live){
+  const c=$("#micCircle");
+  if(c){ c.classList.toggle("live",live); c.textContent=live?"🔴":"🎙️"; }
+  $("#fabMic").classList.toggle("listening",live);
+  $("#btnVoiceStart").textContent = live ? "⏹ Stop" : "🎙️ Start Listening";
+}
+
+function openVoice(){
+  if(!SR){ toast("Voice needs Chrome or Android (not supported in this browser)","warn"); return; }
   voiceScrim.classList.add("on");
-  $("#voiceStatus").textContent="Tap “Start Listening” and speak…";
-});
+  startVoice();   // auto-start inside the tap gesture (required by iOS)
+}
+$("#fabMic").addEventListener("click",openVoice);
+$("#micCircle").addEventListener("click",()=>{ listening?stopVoice():startVoice(); });
+$("#btnVoiceStart").addEventListener("click",()=>{ listening?stopVoice():startVoice(); });
 $("#btnCancelVoice").addEventListener("click",()=>{ stopVoice(); voiceScrim.classList.remove("on"); });
 voiceScrim.addEventListener("click",e=>{ if(e.target===voiceScrim){ stopVoice(); voiceScrim.classList.remove("on"); } });
-$("#btnVoiceStart").addEventListener("click",startVoice);
 
 function startVoice(){
-  if(!SR) return;
-  if(listening) return;                    // ignore double taps while already listening
-  clearTimeout(restartTimer);
-  manualStop=false; listening=true;
-  $("#fabMic").classList.add("listening");
-  $("#voiceStatus").innerHTML="🎧 <b>Listening…</b> speak now";
-  $("#btnVoiceStart").textContent="⏹ Stop"; $("#btnVoiceStart").onclick=stopVoice;
+  if(!SR){ toast("Voice not supported here","warn"); return; }
+  if(listening) return;                     // ignore double taps
+  manualStop=false; listening=true; gotSpeech=false;
+  setMic(true); vlabel("🎧 Listening… say a command");
   spinUpRecog();
 }
 function spinUpRecog(){
-  try{ recog=new SR(); }catch(e){ finalizeStop(); return; }
-  recog.lang="en-US"; recog.interimResults=true; recog.continuous=false; recog.maxAlternatives=3;
+  try{ recog=new SR(); }catch(e){ listening=false; setMic(false); vlabel("Couldn't start voice"); return; }
+  recog.lang="en-US"; recog.continuous=true; recog.interimResults=false; recog.maxAlternatives=3;
+  recog.onstart=()=>{ if(listening) vlabel("🎧 Listening… say a command"); };
+  recog.onspeechstart=()=>{ gotSpeech=true; };
   recog.onresult=(ev)=>{
-    let txt=""; for(const r of ev.results) txt+=r[0].transcript;
-    $("#voiceStatus").innerHTML=`“${escapeHtml(txt)}”`;
-    if(ev.results[ev.results.length-1].isFinal){ handleVoice(txt.trim().toLowerCase(), txt.trim()); }
+    for(let i=ev.resultIndex;i<ev.results.length;i++){
+      if(ev.results[i].isFinal){
+        const txt=ev.results[i][0].transcript.trim();
+        if(txt) handleVoice(txt.toLowerCase(), txt);
+      }
+    }
   };
   recog.onerror=(e)=>{
-    // 'aborted' & 'no-speech' fire randomly and are harmless — swallow them and keep listening
+    // 'aborted' & 'no-speech' fire randomly on mobile and are harmless — ignore, keep listening
     if(e.error==="no-speech"||e.error==="aborted") return;
     if(e.error==="not-allowed"||e.error==="service-not-allowed"){
-      $("#voiceStatus").textContent="🎤 Mic permission blocked — allow microphone access, then try again.";
-      manualStop=true;
+      manualStop=true; listening=false; setMic(false);
+      vlabel("🎤 Allow microphone access, then tap again");
+      toast("Microphone is blocked — enable mic access for this site","bad");
     }else if(e.error==="network"){
-      $("#voiceStatus").textContent="🌐 Voice recognition needs an internet connection.";
+      vlabel("🌐 Voice needs an internet connection");
     }
   };
   recog.onend=()=>{
     if(listening && !manualStop){
-      // brief pause before restarting so back-to-back commands don't trigger 'aborted' loops
-      restartTimer=setTimeout(()=>{ if(listening && !manualStop) spinUpRecog(); }, 250);
+      try{ recog.start(); }                 // keep the session alive (works on Chrome/Android)
+      catch(e){ listening=false; setMic(false); vlabel("Tap the mic to speak again"); }
     }else{
-      finalizeStop();
+      listening=false; setMic(false);
+      if(!$("#micLabel") || /Listening/.test($("#micLabel").textContent)) vlabel("Tap the mic to speak");
     }
   };
   try{ recog.start(); }catch(e){ /* start race — onend/onerror recovers */ }
 }
 function stopVoice(){
   manualStop=true; listening=false;
-  clearTimeout(restartTimer);
   if(recog){ try{ recog.stop(); }catch(e){} }
-  finalizeStop();
-}
-function finalizeStop(){
-  listening=false;
-  $("#fabMic").classList.remove("listening");
-  $("#btnVoiceStart").textContent="🎙️ Start Listening"; $("#btnVoiceStart").onclick=startVoice;
+  setMic(false); vlabel("Tap the mic to speak");
 }
 
 function findItemByName(q){
@@ -1257,11 +1330,11 @@ function handleVoice(t, original){
       const where=it.location==="pantry"?"in your pantry":"on your grocery list";
       const amt=it.percent!=null?` — ${it.percent}% left`:"";
       speak(`Yes, ${it.name} is ${where}${amt}.`);
-      $("#voiceStatus").innerHTML=`✅ <b>${escapeHtml(it.name)}</b> is ${where}${amt}`;
+      vlabel(`✅ ${it.name} is ${where}${amt}`);
       toast(`✅ ${it.name} is ${where}${amt}`,"good");
     }else{
       speak(`No, I couldn't find ${q} in your pantry.`);
-      $("#voiceStatus").innerHTML=`❌ “${escapeHtml(q)}” not found`;
+      vlabel(`❌ “${q}” not found`);
       toast(`❌ “${q}” is not in your pantry`,"warn");
     }
     return;
@@ -1282,7 +1355,7 @@ function handleVoice(t, original){
       save(); renderAll();
       const added=pct<=25?" and added it to your grocery list":"";
       speak(`Set ${it.name} to ${pct} percent${added}.`);
-      $("#voiceStatus").innerHTML=`✅ ${escapeHtml(it.name)} → <b>${pct}%</b>${added}`;
+      vlabel(`✅ ${it.name} → ${pct}%${added}`);
       toast(`✅ ${it.name} set to ${pct}%${added}`,"good");
     }else{
       speak(`I couldn't find ${name}.`);
@@ -1300,7 +1373,7 @@ function handleVoice(t, original){
       it.location="grocery"; it.checked=false; if(it.percent!=null)it.percent=0;
       save(); renderAll();
       speak(`${it.name} moved to your grocery list.`);
-      $("#voiceStatus").innerHTML=`🛒 <b>${escapeHtml(it.name)}</b> → grocery list`;
+      vlabel(`🛒 ${it.name} → grocery list`);
       toast(`🛒 ${it.name} added to grocery list`,"good");
     }else{
       // add as new grocery item
@@ -1331,7 +1404,7 @@ function handleVoice(t, original){
     return;
   }
 
-  $("#voiceStatus").innerHTML=`🤔 Didn't catch a command in:<br>“${escapeHtml(original)}”`;
+  vlabel(`🤔 Didn't catch that — try again`);
   toast("Didn't recognize that command","warn");
 }
 function titleCase(s){ return s.replace(/\b\w/g,c=>c.toUpperCase()); }
@@ -1355,15 +1428,23 @@ function toast(msg,kind){
    SWIPE-DOWN / TAP-HANDLE TO CLOSE SHEETS
    ============================================================ */
 function enableSwipeClose(sheet, closeFn){
-  let startY=0, curY=0, dragging=false;
+  let startY=0, startX=0, curY=0, dragging=false, locked=false;
   sheet.addEventListener("touchstart",(e)=>{
     if(sheet.scrollTop>0){ dragging=false; return; }   // let content scroll instead
-    dragging=true; startY=curY=e.touches[0].clientY; sheet.style.transition="none";
+    dragging=true; locked=false;
+    startY=curY=e.touches[0].clientY; startX=e.touches[0].clientX;
+    sheet.style.transition="none";
   },{passive:true});
   sheet.addEventListener("touchmove",(e)=>{
     if(!dragging) return;
-    curY=e.touches[0].clientY;
-    const dy=curY-startY;
+    const y=e.touches[0].clientY, x=e.touches[0].clientX;
+    const dy=y-startY, dx=x-startX;
+    if(!locked){
+      // decide axis: a mostly-horizontal gesture is ignored (up/down only)
+      if(Math.abs(dx)>Math.abs(dy) && Math.abs(dx)>8){ dragging=false; sheet.style.transform=""; return; }
+      if(Math.abs(dy)>8) locked=true;
+    }
+    curY=y;
     if(dy>0){ sheet.style.transform=`translateY(${dy}px)`; if(dy>6 && e.cancelable) e.preventDefault(); }
     else { dragging=false; sheet.style.transform=""; }   // upward = normal scroll
   },{passive:false});
