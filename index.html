@@ -249,6 +249,31 @@ main{padding:12px 12px 90px;max-width:640px;margin:0 auto}
 .addcat input{padding:11px 12px;border-radius:11px;border:1.5px solid var(--line);background:#fafbf9;outline:none;width:100%}
 .setrow{display:flex;align-items:center;justify-content:space-between;gap:10px;font-weight:600;font-size:14.5px}
 .setrow select{flex:0 0 auto;padding:9px 10px;border-radius:10px;border:1.5px solid var(--line);background:#fafbf9}
+/* ---- Cloud / accounts ---- */
+#cloudOverlay{position:fixed;inset:0;z-index:90;background:linear-gradient(160deg,#e8f5e9,#f4f6f2);display:none;flex-direction:column;overflow-y:auto;padding:calc(28px + env(safe-area-inset-top)) 20px calc(28px + env(safe-area-inset-bottom))}
+#cloudOverlay.on{display:flex}
+.cloudcard{background:#fff;border-radius:20px;box-shadow:0 6px 24px rgba(0,0,0,.1);padding:22px 20px;max-width:420px;width:100%;margin:auto}
+.cloudcard h2{font-size:22px;margin:0 0 4px;display:flex;align-items:center;gap:8px}
+.cloudcard .csub{color:var(--muted);font-size:13.5px;margin:0 0 18px;line-height:1.5}
+.cloudcard label{display:block;font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin:12px 0 5px}
+.cloudcard input,.cloudcard select{width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--line);background:#fafbf9;outline:none;font-size:16px}
+.cloudcard input:focus{border-color:var(--green-l);background:#fff}
+.cloudmsg{font-size:13px;margin:10px 0 0;min-height:18px}
+.cloudmsg.err{color:var(--red)} .cloudmsg.ok{color:var(--green)}
+.clink{color:var(--green);font-weight:700;background:none;font-size:14px;padding:6px}
+.pantryrow{display:flex;align-items:center;gap:10px;padding:13px 14px;background:#fafbf9;border:1.5px solid var(--line);border-radius:14px;margin-bottom:9px;cursor:pointer}
+.pantryrow:active{background:#eef2ea}
+.pantryrow .pnm{flex:1;font-weight:800;font-size:15.5px}
+.pantryrow .prole{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;background:#e8f5e9;color:var(--green-d)}
+.pantryrow .prole.viewer{background:#fff3e0;color:#e65100}
+.migbox{background:#fff8e1;border:1.5px solid #ffe082;border-radius:14px;padding:13px 14px;margin-bottom:14px;font-size:13.5px;color:#e65100;line-height:1.5}
+#acctBar{position:fixed;top:0;left:0;right:0;z-index:35;display:none}
+body.viewonly .fab,body.viewonly .moveBtn,body.viewonly .openpill,body.viewonly .check,body.viewonly #btnClearChecked{display:none !important}
+.vobadge{display:none;background:#fff3e0;color:#e65100;font-weight:700;font-size:12px;text-align:center;padding:6px}
+body.viewonly .vobadge{display:block}
+.memberrow{display:flex;align-items:center;gap:8px;padding:9px 10px;background:#fafbf9;border:1.5px solid var(--line);border-radius:11px;margin-bottom:7px;font-size:13.5px}
+.memberrow .mem{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.memberrow select{flex:0 0 auto;padding:6px 8px;border-radius:8px;border:1.5px solid var(--line);background:#fff;font-size:12px}
 </style>
 </head>
 <body>
@@ -383,6 +408,23 @@ main{padding:12px 12px 90px;max-width:640px;margin:0 auto}
     <div class="grab"></div>
     <h2>⚙️ Settings</h2>
 
+    <div class="setblock" id="cloudSettings" style="display:none">
+      <div class="setlabel">Pantry &amp; sharing</div>
+      <div class="setrow" style="margin-bottom:10px"><span id="cloudPantryName" style="font-weight:800">—</span><button class="chip" id="btnSwitchPantry" style="flex:0 0 auto">Switch</button></div>
+      <div id="shareArea">
+        <label style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:6px">Share with someone</label>
+        <div class="sub-hint" style="margin:0 0 8px">They make a free account with this email, then it appears in their pantry list. Editors can change the inventory; viewers can only look.</div>
+        <div style="display:flex;gap:8px;margin-bottom:6px">
+          <input id="shareEmail" type="email" placeholder="their@email.com" style="flex:1;padding:11px 12px;border-radius:11px;border:1.5px solid var(--line);background:#fafbf9">
+          <select id="shareRole" style="flex:0 0 auto;padding:0 8px;border-radius:11px;border:1.5px solid var(--line);background:#fafbf9"><option value="editor">Editor</option><option value="viewer">Viewer</option></select>
+        </div>
+        <button class="btn sec" id="btnShareGo">＋ Add person</button>
+        <div class="cloudmsg" id="shareMsg"></div>
+        <div id="memberList" style="margin-top:12px"></div>
+      </div>
+      <button class="btn ghost" id="btnCloudSignOut" style="margin-top:6px">Sign out</button>
+    </div>
+
     <div class="setblock">
       <div class="setlabel">Categories</div>
       <div class="sub-hint" style="margin:0 0 8px">Items auto-sort into these. Drag order with ▲▼, tap ✏️ to rename, ✕ to delete (its items move to “Other”).</div>
@@ -440,13 +482,68 @@ main{padding:12px 12px 90px;max-width:640px;margin:0 auto}
 </div>
 
 <div id="toast"></div>
+<div class="vobadge">👁️ View-only — the owner hasn't given you edit access</div>
+
+<!-- ============ Cloud / accounts overlay ============ -->
+<div id="cloudOverlay">
+  <!-- Auth screen -->
+  <div class="cloudcard" id="authCard">
+    <h2>🥫 <span id="authTitle">Create your account</span></h2>
+    <p class="csub" id="authSub">Your pantry syncs across your devices and anyone you share it with.</p>
+    <label>Email</label>
+    <input id="authEmail" type="email" autocomplete="email" placeholder="you@email.com">
+    <label>Password</label>
+    <input id="authPass" type="password" autocomplete="current-password" placeholder="At least 6 characters">
+    <div class="cloudmsg" id="authMsg"></div>
+    <button class="btn" id="authGo" style="margin-top:14px">Create account</button>
+    <div style="text-align:center;margin-top:8px">
+      <button class="clink" id="authToggle">Already have an account? Sign in</button>
+    </div>
+  </div>
+
+  <!-- Pantry picker screen -->
+  <div class="cloudcard" id="pantryCard" style="display:none">
+    <h2>🗂️ Your pantries</h2>
+    <p class="csub" id="pantrySub"></p>
+    <div id="migBox"></div>
+    <div id="pantryList"></div>
+    <label>Create a new pantry</label>
+    <div style="display:flex;gap:8px">
+      <input id="newPantryName" placeholder="e.g. Home Kitchen">
+      <button class="btn" id="newPantryGo" style="width:auto;padding:13px 16px;margin:0">Create</button>
+    </div>
+    <div class="cloudmsg" id="pantryMsg"></div>
+    <div style="text-align:center;margin-top:14px">
+      <button class="clink" id="signOutBtn">Sign out</button>
+    </div>
+  </div>
+</div>
+
 <canvas id="workCanvas" style="display:none"></canvas>
+
+<!-- ============================================================
+     FIREBASE CONFIG  ←  PASTE YOUR PROJECT CONFIG HERE
+     Until you fill this in, the app runs 100% offline on this device (no accounts/sync).
+     Get these 6 values from: Firebase console → Project settings → "Your apps" → Web app → SDK setup → Config.
+     ============================================================ -->
+<script>
+window.FIREBASE_CONFIG = {
+  apiKey: "AIzaSyD-9w7c0JjL0itSS9Osj8rMwENoJTGEPt0",
+  authDomain: "pantryhub-258b2.firebaseapp.com",
+  projectId: "pantryhub-258b2",
+  storageBucket: "pantryhub-258b2.firebasestorage.app",
+  messagingSenderId: "967597991365",
+  appId: "1:967597991365:web:1c95d76704cc7d9c9b57ac"
+};
+window.CLOUD = !!(window.FIREBASE_CONFIG.apiKey && !/PASTE/.test(window.FIREBASE_CONFIG.apiKey));
+</script>
 
 <script>
 /* ============================================================
    PANTRY & GROCERY  — single-file app
    ============================================================ */
 const $=(s,el=document)=>el.querySelector(s);
+const CLOUD=!!window.CLOUD;
 const $$=(s,el=document)=>[...el.querySelectorAll(s)];
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const todayISO=()=>new Date().toISOString().slice(0,10);
@@ -908,9 +1005,12 @@ let state={items:[],notes:[],settings:{sort:"category"}};
 const KEY="pantry_grocery_v1";
 function load(){
   try{const raw=localStorage.getItem(KEY); if(raw){state=Object.assign(state,JSON.parse(raw));}}catch(e){}
-  if(!state.items.length && !localStorage.getItem(KEY+"_seeded")){ seed(); localStorage.setItem(KEY+"_seeded","1"); }
-  seedGroceryV1();
-  migrateCatV2();
+  // In cloud mode we never auto-seed: a new account starts empty and data arrives from Firestore.
+  if(!CLOUD){
+    if(!state.items.length && !localStorage.getItem(KEY+"_seeded")){ seed(); localStorage.setItem(KEY+"_seeded","1"); }
+    seedGroceryV1();
+    migrateCatV2();
+  }
   rebuildCats();
 }
 
@@ -946,7 +1046,19 @@ function seedGroceryV1(){
   localStorage.setItem(KEY+"_gro_v1","1");
   save();
 }
-function save(){ try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){ toast("Storage full — remove some photos","bad"); } }
+function save(){
+  try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){ toast("Storage full — remove some photos","bad"); }
+  if(CLOUD && window.Sync && window.Sync.ready) window.Sync.push(state);   // debounced upload to Firestore
+}
+// Called by the sync layer when a newer version arrives from the cloud
+window.applyRemoteState=function(remote){
+  state=Object.assign({items:[],notes:[],settings:{sort:"category"},cats:null},remote||{});
+  rebuildCats();
+  try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}
+  renderAll();
+};
+function canEdit(){ return !CLOUD || !window.PANTRY_ROLE || window.PANTRY_ROLE==="owner" || window.PANTRY_ROLE==="editor"; }
+function requireEdit(){ if(!canEdit()){ toast("View-only — ask the owner for edit access","warn"); return false; } return true; }
 
 /* ---------- Seed data from your screenshots ---------- */
 function seed(){
@@ -1247,6 +1359,7 @@ document.addEventListener("click",e=>{
 
 function getItem(id){ return state.items.find(i=>i.id===id); }
 function markOpened(id){
+  if(!requireEdit()) return;
   const it=getItem(id); if(!it) return;
   it.opened=todayISO();
   save(); renderAll();
@@ -1254,19 +1367,21 @@ function markOpened(id){
   toast(fs?`📂 “${it.name}” opened · best used within ${fs.daysLeft} day(s)`:`📂 “${it.name}” marked opened`,"good");
 }
 function markUnopened(id){
+  if(!requireEdit()) return;
   const it=getItem(id); if(!it) return;
   it.opened=null;
   save(); renderAll();
   toast(`↩︎ “${it.name}” marked unopened`,"good");
 }
 function moveItem(id){
+  if(!requireEdit()) return;
   const it=getItem(id); if(!it) return;
   it.location = it.location==="pantry" ? "grocery" : "pantry";
   if(it.location==="grocery") it.checked=false;
   save(); renderAll();
   toast(it.location==="grocery"?`🛒 “${it.name}” added to Grocery`:`↩︎ “${it.name}” back in Pantry`,"good");
 }
-function toggleCheck(id){ const it=getItem(id); if(!it) return; it.checked=!it.checked; save(); renderAll(); }
+function toggleCheck(id){ if(!requireEdit()) return; const it=getItem(id); if(!it) return; it.checked=!it.checked; save(); renderAll(); }
 
 /* clear checked */
 $("#btnClearChecked").addEventListener("click",()=>{
@@ -1350,6 +1465,7 @@ function openItemSheet(id){
 function closeItemSheet(){ itemScrim.classList.remove("on"); editingId=null; pendingPhoto=null; }
 
 $("#fabAdd").addEventListener("click",()=>{
+  if(!requireEdit()) return;
   if(currentTab==="notes"){ openNoteSheet(); } else { openItemSheet(null); }
 });
 $("#btnCancelItem").addEventListener("click",closeItemSheet);
@@ -1416,6 +1532,7 @@ function updateFreshInfo(){
 }
 
 $("#btnSaveItem").addEventListener("click",()=>{
+  if(!requireEdit()) return;
   const name=$("#fName").value.trim();
   if(!name){ toast("Please enter an item name","warn"); return; }
   const data={
@@ -1436,6 +1553,7 @@ $("#btnSaveItem").addEventListener("click",()=>{
 });
 $("#btnMoveItem").addEventListener("click",()=>{ if(editingId){ moveItem(editingId); closeItemSheet(); } });
 $("#btnDeleteItem").addEventListener("click",()=>{
+  if(!requireEdit()) return;
   if(editingId && confirm("Delete this item permanently?")){ state.items=state.items.filter(i=>i.id!==editingId); save(); renderAll(); closeItemSheet(); toast("Deleted","good"); }
 });
 
@@ -1447,6 +1565,7 @@ function openNoteSheet(){ $("#noteText").value=""; noteScrim.classList.add("on")
 $("#btnCancelNote").addEventListener("click",()=>noteScrim.classList.remove("on"));
 noteScrim.addEventListener("click",e=>{ if(e.target===noteScrim) noteScrim.classList.remove("on"); });
 $("#btnSaveNote").addEventListener("click",()=>{
+  if(!requireEdit()) return;
   const t=$("#noteText").value.trim(); if(!t){ noteScrim.classList.remove("on"); return; }
   state.notes.unshift({id:uid(),text:t,ts:Date.now()}); save(); renderNotes(); noteScrim.classList.remove("on"); toast("📝 Note saved","good");
 });
@@ -1847,6 +1966,7 @@ function toast(msg,kind){
   requestAnimationFrame(()=>el.classList.add("show"));
   setTimeout(()=>{ el.classList.remove("show"); setTimeout(()=>el.remove(),300); }, 3200);
 }
+window.__toast=toast;
 
 /* ============================================================
    SWIPE-DOWN / TAP-HANDLE TO CLOSE SHEETS
@@ -2000,6 +2120,219 @@ renderAll();
 
 // keep freshness fresh across midnight
 setInterval(renderAll, 60*60*1000);
+</script>
+
+<!-- ============================================================
+     CLOUD SYNC LAYER (Firebase) — only active when window.CLOUD is true
+     ============================================================ -->
+<script type="module">
+if(window.CLOUD){
+ try{
+  const V="10.12.0";
+  const { initializeApp } = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-app.js`);
+  const { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-auth.js`);
+  const { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, query, where, serverTimestamp, arrayUnion } = await import(`https://www.gstatic.com/firebasejs/${V}/firebase-firestore.js`);
+
+  const app=initializeApp(window.FIREBASE_CONFIG);
+  const auth=getAuth(app);
+  const db=getFirestore(app);
+  const $=s=>document.querySelector(s);
+  const overlay=$("#cloudOverlay"), authCard=$("#authCard"), pantryCard=$("#pantryCard");
+  let signupMode=true, me=null, myEmail=null;
+  let listUnsub=null, docUnsub=null, curId=null, curData=null;
+  const KEY="pantry_grocery_v1";
+
+  overlay.classList.add("on");            // show while resolving auth
+
+  /* ---------- Auth UI ---------- */
+  $("#authToggle").addEventListener("click",()=>{
+    signupMode=!signupMode;
+    $("#authTitle").textContent=signupMode?"Create your account":"Welcome back";
+    $("#authGo").textContent=signupMode?"Create account":"Sign in";
+    $("#authToggle").textContent=signupMode?"Already have an account? Sign in":"Need an account? Create one";
+    $("#authPass").autocomplete=signupMode?"new-password":"current-password";
+    $("#authMsg").textContent="";
+  });
+  $("#authGo").addEventListener("click",async()=>{
+    const email=$("#authEmail").value.trim().toLowerCase(), pass=$("#authPass").value;
+    const msg=$("#authMsg"); msg.className="cloudmsg";
+    if(!email||!pass){ msg.className="cloudmsg err"; msg.textContent="Enter your email and password."; return; }
+    $("#authGo").disabled=true; msg.textContent="…";
+    try{
+      if(signupMode) await createUserWithEmailAndPassword(auth,email,pass);
+      else await signInWithEmailAndPassword(auth,email,pass);
+    }catch(e){ msg.className="cloudmsg err"; msg.textContent=friendly(e); }
+    $("#authGo").disabled=false;
+  });
+  $("#authPass").addEventListener("keydown",e=>{ if(e.key==="Enter") $("#authGo").click(); });
+  $("#signOutBtn").addEventListener("click",()=>signOut(auth));
+  $("#btnCloudSignOut").addEventListener("click",()=>{ $("#settingsScrim").classList.remove("on"); signOut(auth); });
+  function friendly(e){
+    const c=(e&&e.code)||"";
+    if(c.includes("email-already-in-use")) return "That email already has an account — try Sign in.";
+    if(c.includes("invalid-credential")||c.includes("wrong-password")||c.includes("user-not-found")) return "Wrong email or password.";
+    if(c.includes("weak-password")) return "Password must be at least 6 characters.";
+    if(c.includes("invalid-email")) return "That doesn't look like a valid email.";
+    if(c.includes("network")) return "Network error — check your connection.";
+    return (e&&e.message)||"Something went wrong.";
+  }
+
+  /* ---------- Auth state ---------- */
+  onAuthStateChanged(auth,user=>{
+    if(docUnsub){docUnsub();docUnsub=null;} if(listUnsub){listUnsub();listUnsub=null;}
+    curId=null; curData=null; window.Sync.ready=false; window.PANTRY_ROLE=null;
+    document.body.classList.remove("viewonly");
+    if(!user){
+      me=null; myEmail=null;
+      authCard.style.display=""; pantryCard.style.display="none";
+      $("#authEmail").value=""; $("#authPass").value=""; $("#authMsg").textContent="";
+      overlay.classList.add("on");
+      return;
+    }
+    me=user; myEmail=(user.email||"").toLowerCase();
+    authCard.style.display="none"; pantryCard.style.display="";
+    watchPantries();
+  });
+
+  /* ---------- Pantry list ---------- */
+  function watchPantries(){
+    $("#pantrySub").textContent="Signed in as "+myEmail;
+    const q=query(collection(db,"pantries"), where("memberEmails","array-contains", myEmail));
+    listUnsub=onSnapshot(q,snap=>{
+      const list=$("#pantryList"); list.innerHTML="";
+      const rows=[]; snap.forEach(d=>rows.push({id:d.id, ...d.data()}));
+      rows.sort((a,b)=>(a.name||"").localeCompare(b.name||""));
+      rows.forEach(p=>{
+        const role=roleOf(p,myEmail);
+        const el=document.createElement("div"); el.className="pantryrow";
+        el.innerHTML=`<span class="pnm">${esc(p.name||"Pantry")}</span><span class="prole ${role==='viewer'?'viewer':''}">${role}</span>`;
+        el.addEventListener("click",()=>openPantry(p.id));
+        list.appendChild(el);
+      });
+      // migration offer: local data exists and user has no pantries yet
+      const mig=$("#migBox"); mig.innerHTML="";
+      let local=null; try{ local=JSON.parse(localStorage.getItem(KEY)||"null"); }catch(e){}
+      const localCount=local&&local.items?local.items.length:0;
+      if(!rows.length){
+        $("#pantrySub").textContent="Signed in as "+myEmail+" — create your first pantry.";
+        if(localCount>0){
+          mig.innerHTML=`<div class="migbox">📦 You have <b>${localCount} items</b> saved on this device. Bring them into a synced pantry?</div>`;
+          const b=document.createElement("button"); b.className="btn"; b.style.marginBottom="14px"; b.textContent="Import my current pantry ("+localCount+" items)";
+          b.addEventListener("click",()=>createPantry(prompt("Name this pantry:","My Pantry")||"My Pantry", local));
+          mig.appendChild(b);
+        }
+      }
+    },err=>{ $("#pantryMsg").className="cloudmsg err"; $("#pantryMsg").textContent="Can't load pantries: "+err.code+". Did you publish the security rules?"; });
+  }
+  $("#newPantryGo").addEventListener("click",()=>{
+    const name=$("#newPantryName").value.trim(); if(!name){ return; }
+    $("#newPantryName").value="";
+    createPantry(name, {items:[],notes:[],settings:{sort:"category"},cats:null});
+  });
+  async function createPantry(name, stateObj){
+    const msg=$("#pantryMsg"); msg.className="cloudmsg"; msg.textContent="Creating…";
+    try{
+      const ref=doc(collection(db,"pantries"));
+      await setDoc(ref,{
+        name, ownerEmail:myEmail,
+        memberEmails:[myEmail], editorEmails:[myEmail],
+        roles:[{email:myEmail, role:"owner"}],
+        state:clean(stateObj), updatedAt:serverTimestamp()
+      });
+      msg.textContent=""; openPantry(ref.id);
+    }catch(e){ msg.className="cloudmsg err"; msg.textContent="Create failed: "+(e.code||e.message); }
+  }
+
+  /* ---------- Open + live-sync one pantry ---------- */
+  function openPantry(id){
+    if(docUnsub) docUnsub();
+    curId=id;
+    docUnsub=onSnapshot(doc(db,"pantries",id),{includeMetadataChanges:true},snap=>{
+      if(!snap.exists()){ toast("This pantry was deleted","warn"); backToList(); return; }
+      if(snap.metadata.hasPendingWrites) return;   // ignore our own optimistic writes
+      curData=snap.data();
+      const role=roleOf(curData,myEmail);
+      window.PANTRY_ROLE=role;
+      document.body.classList.toggle("viewonly", role==="viewer");
+      window.applyRemoteState(curData.state||{items:[],notes:[],settings:{sort:"category"}});
+      window.Sync.ready=(role!=="viewer");
+      updateSettingsUI();
+      overlay.classList.remove("on");
+    },err=>{ toast("Sync error: "+err.code,"bad"); });
+  }
+  function backToList(){ if(docUnsub){docUnsub();docUnsub=null;} curId=null; curData=null; window.Sync.ready=false; overlay.classList.add("on"); pantryCard.style.display=""; }
+  $("#btnSwitchPantry").addEventListener("click",()=>{ $("#settingsScrim").classList.remove("on"); backToList(); });
+
+  /* ---------- Debounced push ---------- */
+  let pushTimer=null, latest=null;
+  window.Sync={ready:false, push(st){ latest=st; clearTimeout(pushTimer); pushTimer=setTimeout(flush,700); }};
+  async function flush(){
+    if(!curId || !window.Sync.ready) return;
+    try{ await updateDoc(doc(db,"pantries",curId),{state:clean(latest), updatedAt:serverTimestamp()}); }
+    catch(e){ toast("Couldn't sync change: "+(e.code||""),"warn"); }
+  }
+
+  /* ---------- Sharing (owner) ---------- */
+  function updateSettingsUI(){
+    if(!curData) return;
+    $("#cloudSettings").style.display="";
+    $("#cloudPantryName").textContent=curData.name||"Pantry";
+    const owner=(curData.ownerEmail===myEmail);
+    $("#shareArea").style.display=owner?"":"none";
+    if(owner) renderMembers();
+  }
+  function renderMembers(){
+    const host=$("#memberList"); host.innerHTML="";
+    (curData.roles||[]).forEach(r=>{
+      const row=document.createElement("div"); row.className="memberrow";
+      const isOwner=r.role==="owner";
+      row.innerHTML=`<span class="mem">${esc(r.email)}${r.email===myEmail?" (you)":""}</span>`;
+      if(isOwner){ const t=document.createElement("span"); t.className="prole"; t.textContent="owner"; row.appendChild(t); }
+      else{
+        const sel=document.createElement("select");
+        sel.innerHTML=`<option value="editor">Editor</option><option value="viewer">Viewer</option><option value="remove">Remove</option>`;
+        sel.value=r.role;
+        sel.addEventListener("change",()=>changeMember(r.email, sel.value));
+        row.appendChild(sel);
+      }
+      host.appendChild(row);
+    });
+  }
+  $("#btnShareGo").addEventListener("click",async()=>{
+    const email=$("#shareEmail").value.trim().toLowerCase(), role=$("#shareRole").value;
+    const msg=$("#shareMsg"); msg.className="cloudmsg";
+    if(!/.+@.+\..+/.test(email)){ msg.className="cloudmsg err"; msg.textContent="Enter a valid email."; return; }
+    if((curData.roles||[]).some(r=>r.email===email)){ msg.className="cloudmsg err"; msg.textContent="That person is already added."; return; }
+    const roles=[...(curData.roles||[]),{email,role}];
+    const editorEmails=role==="editor"?arrayUnion(email):undefined;
+    try{
+      const upd={ roles, memberEmails:arrayUnion(email), updatedAt:serverTimestamp() };
+      if(editorEmails) upd.editorEmails=editorEmails;
+      await updateDoc(doc(db,"pantries",curId),upd);
+      $("#shareEmail").value=""; msg.className="cloudmsg ok"; msg.textContent="Added "+email+" as "+role+".";
+    }catch(e){ msg.className="cloudmsg err"; msg.textContent="Failed: "+(e.code||e.message); }
+  });
+  async function changeMember(email, role){
+    let roles=(curData.roles||[]).filter(r=>r.email!==email);
+    let members=(curData.memberEmails||[]).slice();
+    let editors=(curData.editorEmails||[]).filter(e=>e!==email);
+    if(role!=="remove"){ roles.push({email,role}); if(role==="editor") editors.push(email); }
+    else { members=members.filter(e=>e!==email); }
+    try{ await updateDoc(doc(db,"pantries",curId),{roles, memberEmails:members, editorEmails:editors, updatedAt:serverTimestamp()}); }
+    catch(e){ toast("Failed: "+(e.code||""),"bad"); }
+  }
+
+  /* ---------- helpers ---------- */
+  function roleOf(p,email){ const r=(p.roles||[]).find(x=>x.email===email); return r?r.role:(p.ownerEmail===email?"owner":"viewer"); }
+  function clean(o){ try{ return JSON.parse(JSON.stringify(o||{})); }catch(e){ return {}; } }
+  function esc(s){ return (s||"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function toast(m,k){ if(window.__toast) window.__toast(m,k); }
+ }catch(err){
+  console.error("Cloud init failed",err);
+  const o=document.querySelector("#cloudOverlay");
+  if(o){ o.classList.add("on"); const m=document.querySelector("#authMsg"); if(m){m.className="cloudmsg err"; m.textContent="Couldn't reach Firebase. Check your config and internet.";} }
+ }
+}
 </script>
 </body>
 </html>
