@@ -102,6 +102,8 @@ main{padding:12px 12px 90px;max-width:640px;margin:0 auto}
 .pill.bad{background:#ffebee;color:#c62828}
 .pill.ok{background:#e8f5e9;color:#2e7d32}
 .pill.info{background:#e3f2fd;color:#1565c0}
+.pill.openpill{background:#ede7f6;color:#5e35b1;border:none;font-weight:700;cursor:pointer}
+.pill.openpill:active{background:#d1c4e9}
 .bar{height:7px;border-radius:6px;background:#e9ede6;overflow:hidden;margin-top:7px;max-width:150px}
 .bar > i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--green-l),var(--lime))}
 .bar.low > i{background:linear-gradient(90deg,#ef5350,#e53935)}
@@ -275,11 +277,12 @@ main{padding:12px 12px 90px;max-width:640px;margin:0 auto}
       <img class="pv" id="photoPreview" alt="">
       <div id="photoHint">📷 No photo yet</div>
       <div class="chipbtns">
-        <button class="chip" id="chipScanItem">📸 Scan item / barcode</button>
+        <button class="chip" id="chipScanItem">📸 Scan barcode</button>
+        <button class="chip" id="chipFindImg">🔎 Find image</button>
         <button class="chip" id="chipPhoto">🖼️ Add photo</button>
       </div>
     </div>
-    <div class="sub-hint">Scanning a barcode auto-fills the name &amp; category from the Open Food Facts database.</div>
+    <div class="sub-hint">“Find image” looks up a product photo by name (Open Food Facts). Scanning a barcode is more accurate. You can also take your own photo.</div>
 
     <div class="field">
       <label>Item name</label>
@@ -324,8 +327,11 @@ main{padding:12px 12px 90px;max-width:640px;margin:0 auto}
     </div>
 
     <div class="field">
-      <label>Date opened (starts freshness timer)</label>
-      <input id="fOpen" type="date">
+      <label>Opened? (starts the freshness timer)</label>
+      <div class="row2" style="align-items:center">
+        <input id="fOpen" type="date">
+        <button class="chip" id="chipOpenToday" style="flex:0 0 auto">📂 Opened today</button>
+      </div>
     </div>
     <div id="freshInfo"></div>
 
@@ -401,9 +407,13 @@ const CAT_ORDER=CATS.map(c=>c[0]);
 
 /* ---------- Per-item emoji (so eggs ≠ beef) ---------- */
 const ITEM_EMOJI=[
+  // compound-name overrides — must beat their substrings ("egg noodle" ≠ egg, "rice vinegar" ≠ rice, "franks red" ≠ frank)
+  [["egg noodle","rice noodle"],"🍜"],[["rice vinegar"],"🍶"],[["sesame oil"],"🫒"],
+  [["hot sauce","sriracha","franks red","tabasco","curry paste","chili paste"],"🌶️"],[["liquid smoke","liquid seasoning","maggi"],"🥫"],
+  [["chicken stock","chicken broth"],"🍲"],[["corn tortilla","tortilla"],"🌮"],
   [["fish ball"],"🍡"],[["salted egg"],"🥚"],[["egg"],"🥚"],
   [["chicken"],"🍗"],[["beef","chuck","steak"],"🥩"],
-  [["hotdog","sausage","frank"],"🌭"],[["spam","bacon","ham","pork","ribs","chop"],"🥓"],
+  [["hotdog","sausage"],"🌭"],[["spam","bacon","ham","pork","ribs","chop"],"🥓"],
   [["shrimp","prawn"],"🦐"],[["fish","sardine","tuna","salmon"],"🐟"],[["tofu"],"🍢"],
   [["milk"],"🥛"],[["butter"],"🧈"],[["cheese","mozzarella"],"🧀"],[["coconut"],"🥥"],[["cream"],"🍦"],
   [["broccoli"],"🥦"],[["carrot"],"🥕"],[["mushroom"],"🍄"],
@@ -411,7 +421,7 @@ const ITEM_EMOJI=[
   [["bell pepper"],"🫑"],[["chili","pepper flake","cayenne","paprika"],"🌶️"],
   [["lemon"],"🍋"],[["lime"],"🍋"],[["mango"],"🥭"],[["banana","strawber"],"🍓"],[["cranberr","grape","raisin"],"🍇"],[["apple"],"🍎"],[["tomato"],"🍅"],
   [["garlic"],"🧄"],[["onion"],"🧅"],[["ginger"],"🫚"],[["corn"],"🌽"],[["potato"],"🥔"],[["peanut"],"🥜"],[["sesame"],"🌰"],
-  [["rice noodle","noodle","udon","ramen","pasta","spaghetti","lasagna","vermicelli"],"🍜"],[["rice"],"🍚"],[["oats"],"🥣"],[["bean","mung"],"🫘"],[["flour","semolina","tapioca","starch"],"🌾"],[["bread","tortilla"],"🫓"],
+  [["rice noodle","noodle","udon","ramen","pasta","spaghetti","lasagna","vermicelli"],"🍜"],[["rice"],"🍚"],[["oats"],"🥣"],[["bean","mung"],"🫘"],[["flour","semolina","tapioca","starch"],"🌾"],[["pan bread","loaf","bun","bread"],"🍞"],[["tortilla"],"🌮"],
   [["honey","molasses","syrup"],"🍯"],[["icing","powdered sugar","sugar"],"🍬"],
   [["cinnamon","cumin","coriander","turmeric","oregano","basil","thyme","bay leaf","sage","anise","clove","cardamon","cardamom","fennel","tarragon","curry","seasoning","savoury","baking soda","baking powder","cornstarch"],"🧂"],
   [["olive","canola","sesame oil","cooking spray","oil"],"🫒"],[["vinegar"],"🍶"],
@@ -449,6 +459,7 @@ const SPICE_COLORS=[
 ];
 function spiceColor(name){
   const n=(name||"").toLowerCase();
+  if(/\boil\b|spray|paste|sauce|\begg\b/.test(n)) return null;  // oils/pastes/sauces/eggs aren't loose powders → use an emoji
   for(const [kws,c] of SPICE_COLORS){ for(const kw of kws){ if(n.includes(kw)) return c; } }
   return null;
 }
@@ -497,32 +508,101 @@ function autoCategory(name){
   return "Other";
 }
 
-/* ---------- Shelf life (days once OPENED) by keyword ---------- */
+/* ---------- Freshness database: days of good quality after OPENING (or after buying, for fresh produce/meat) ----------
+   Values based on USDA FoodKeeper / StillTasty guidance. Longest-matching, most-specific keywords are listed first. */
 const FRESH=[
-  [["milk","almond milk","soy milk"],{fridge:7,freezer:90,pantry:2}],
-  [["evaporated","condensed"],{fridge:5,freezer:60,pantry:2}],
-  [["butter"],{fridge:30,freezer:270,pantry:5}],
-  [["cheese","mozzarella"],{fridge:14,freezer:180,pantry:1}],
+  // --- Dairy ---
+  [["evaporated","condensed milk","sweetened condensed"],{fridge:5,freezer:0,pantry:1}],
+  [["coconut milk","coconut cream"],{fridge:6,freezer:30,pantry:1}],
+  [["almond milk","soy milk","oat milk","cashew milk"],{fridge:7,freezer:0,pantry:1}],
+  [["milk"],{fridge:7,freezer:90,pantry:1}],
+  [["butter"],{fridge:45,freezer:270,pantry:5}],
   [["cheese sauce"],{fridge:10,freezer:60,pantry:1}],
-  [["chicken","beef","pork","turkey","ribs","chuck"],{fridge:2,freezer:180,pantry:0}],
-  [["shrimp","fish","sardine","salmon","tuna"],{fridge:2,freezer:120,pantry:0}],
+  [["cream cheese"],{fridge:14,freezer:0,pantry:1}],
+  [["mozzarella","shredded cheese"],{fridge:14,freezer:180,pantry:1}],
+  [["cheese"],{fridge:21,freezer:180,pantry:1}],
+  [["cream","yogurt"],{fridge:7,freezer:0,pantry:1}],
+  // --- Protein (fresh raw; timer from purchase) ---
+  [["fish ball"],{fridge:3,freezer:90,pantry:1}],
+  [["shrimp","prawn"],{fridge:2,freezer:120,pantry:0}],
+  [["fish","sardine fresh","salmon","tuna fresh","tilapia","bangus"],{fridge:2,freezer:120,pantry:0}],
+  [["chicken","whole chicken"],{fridge:2,freezer:270,pantry:0}],
+  [["ground beef","ground pork","ground"],{fridge:2,freezer:120,pantry:0}],
+  [["beef","pork","ribs","chuck","chop","steak","lamb"],{fridge:3,freezer:180,pantry:0}],
+  [["hotdog","sausage","frank"],{fridge:7,freezer:60,pantry:1}],
+  [["bacon"],{fridge:7,freezer:30,pantry:1}],
+  [["spam","canned meat","luncheon"],{fridge:4,freezer:30,pantry:1}],
+  [["tofu"],{fridge:4,freezer:120,pantry:1}],
+  [["sardine","canned fish","tuna"],{fridge:3,freezer:0,pantry:1}],
+  [["salted egg"],{fridge:30,freezer:0,pantry:7}],
   [["egg"],{fridge:28,freezer:0,pantry:2}],
-  [["ketchup"],{fridge:180,freezer:0,pantry:30}],
+  // --- Fruit / Veggies (fresh; timer from purchase) ---
+  [["spinach","bok choy","kangkong","malunggay","dahon","lettuce","cabbage","greens","watercress","water crest"],{fridge:4,freezer:0,pantry:1}],
+  [["broccoli","cauliflower","asparagus"],{fridge:6,freezer:240,pantry:1}],
+  [["mushroom"],{fridge:6,freezer:0,pantry:1}],
+  [["sitaw","green bean","long bean","okra","pepper","peperoncini fresh"],{fridge:7,freezer:0,pantry:2}],
+  [["bell pepper"],{fridge:10,freezer:180,pantry:2}],
+  [["kalabasa","squash","pumpkin"],{fridge:14,freezer:180,pantry:30}],
+  [["carrot"],{fridge:28,freezer:240,pantry:3}],
+  [["banana"],{fridge:5,freezer:60,pantry:5}],
+  [["mango"],{fridge:6,freezer:180,pantry:4}],
+  [["apple"],{fridge:40,freezer:240,pantry:7}],
+  [["lemon","lime"],{fridge:28,freezer:120,pantry:7}],
+  [["tomato fresh","fresh tomato"],{fridge:7,freezer:60,pantry:5}],
+  [["ginger"],{fridge:21,freezer:180,pantry:7}],
+  [["garlic"],{fridge:14,freezer:180,pantry:90}],
+  [["onion"],{fridge:14,freezer:240,pantry:30}],
+  [["potato"],{fridge:0,freezer:0,pantry:60}],
+  // --- Condiments / sauces (after opening) ---
+  [["ketchup","catsup"],{fridge:180,freezer:0,pantry:30}],
   [["mustard"],{fridge:365,freezer:0,pantry:60}],
-  [["mayonnaise"],{fridge:60,freezer:0,pantry:2}],
-  [["soy sauce","fish sauce","oyster sauce","hoisin"],{fridge:365,freezer:0,pantry:180}],
-  [["sriracha","hot sauce","bbq","worcestershire"],{fridge:180,freezer:0,pantry:120}],
-  [["pickle","peperoncini","sundried","curry paste","black bean paste"],{fridge:90,freezer:0,pantry:14}],
-  [["oil","olive oil","sesame oil"],{fridge:0,freezer:0,pantry:180}],
-  [["vinegar","wine","sake","mirin"],{fridge:0,freezer:0,pantry:365}],
-  [["honey","molasses","sugar","salt","flour","starch"],{fridge:0,freezer:0,pantry:365}],
-  [["jam","jelly"],{fridge:180,freezer:0,pantry:14}],
+  [["mayonnaise","mayo"],{fridge:60,freezer:0,pantry:1}],
+  [["bbq sauce","barbecue"],{fridge:120,freezer:0,pantry:30}],
+  [["oyster sauce"],{fridge:150,freezer:0,pantry:30}],
+  [["hoisin","sweet soy","kecap"],{fridge:365,freezer:0,pantry:60}],
+  [["fish sauce"],{fridge:365,freezer:0,pantry:365}],
+  [["soy sauce","kikkoman","dark soy","light soy"],{fridge:365,freezer:0,pantry:180}],
+  [["sriracha","hot sauce","franks","chili sauce","tabasco"],{fridge:365,freezer:0,pantry:180}],
+  [["worcestershire","liquid smoke","liquid seasoning","maggi","knorr"],{fridge:365,freezer:0,pantry:365}],
+  [["gochujang","miso","bean paste","curry paste","shio koji","tomato paste tube"],{fridge:365,freezer:0,pantry:14}],
+  [["tomato paste","tomato sauce"],{fridge:6,freezer:90,pantry:1}],
+  [["pasta sauce","spaghetti sauce","pesto","salsa"],{fridge:5,freezer:90,pantry:1}],
+  [["sundried tomato"],{fridge:90,freezer:0,pantry:14}],
+  [["pickle","peperoncini","dill","sweet pickle"],{fridge:120,freezer:0,pantry:7}],
+  [["tempura","dipping sauce"],{fridge:60,freezer:0,pantry:14}],
+  [["jam","jelly","preserve","marmalade"],{fridge:180,freezer:0,pantry:14}],
+  // --- Oils / vinegars / cooking wines (after opening) ---
+  [["sesame oil"],{fridge:365,freezer:0,pantry:180}],
+  [["olive oil","canola","vegetable oil","cooking spray","oil"],{fridge:0,freezer:0,pantry:180}],
+  [["vinegar"],{fridge:0,freezer:0,pantry:730}],
+  [["shaoxing","cooking wine","sake","mirin","rice wine","red cooking","white cooking"],{fridge:0,freezer:0,pantry:365}],
+  // --- Baking / dry pantry staples (after opening) ---
+  [["baking powder"],{fridge:0,freezer:0,pantry:180}],
+  [["baking soda"],{fridge:0,freezer:0,pantry:365}],
+  [["coffee","mccafe"],{fridge:30,freezer:60,pantry:21}],
+  [["peanut butter powder","protein powder","whey","cocoa"],{fridge:0,freezer:0,pantry:180}],
+  [["honey"],{fridge:0,freezer:0,pantry:730}],
+  [["molasses","syrup","sugar","salt"],{fridge:0,freezer:0,pantry:365}],
+  [["flour","semolina"],{fridge:180,freezer:365,pantry:180}],
+  [["starch","cornstarch","tapioca"],{fridge:0,freezer:0,pantry:540}],
+  // --- Spices / seasonings (ground lose potency ~1yr; whole longer) ---
+  [["cube","bouillon","stock cube"],{fridge:0,freezer:0,pantry:365}],
+  [["powder","ground","seasoning","paprika","cayenne","cumin","curry","chili","turmeric","cinnamon","basil","oregano","thyme","sage","bay leaf","coriander","tarragon","savoury","kelp","dried"],{fridge:0,freezer:0,pantry:365}],
+  [["whole","seed","clove","anise","cardamon","cardamom","peppercorn","fennel","stick"],{fridge:0,freezer:0,pantry:730}],
+  // --- Grains / pasta / noodles (after opening) ---
+  [["fresh noodle","fresh udon","udon"],{fridge:7,freezer:120,pantry:180}],
+  [["corn tortilla","tortilla"],{fridge:21,freezer:180,pantry:7}],
+  [["rice noodle","egg noodle","ramen","lasagna","spaghetti","vermicelli","pasta","noodle"],{fridge:0,freezer:0,pantry:365}],
+  [["oats","oatmeal"],{fridge:0,freezer:0,pantry:180}],
+  [["rice","mung bean","bean","grain","quinoa"],{fridge:0,freezer:0,pantry:365}],
+  // --- Frozen / misc ---
   [["frozen"],{fridge:2,freezer:180,pantry:0}],
-  [["bread"],{fridge:14,freezer:90,pantry:5}],
-  [["cranberr","raisin"],{fridge:180,freezer:365,pantry:180}],
+  [["bread","pan bread","loaf","bun"],{fridge:14,freezer:90,pantry:5}],
+  [["cranberr","raisin","dried fruit"],{fridge:180,freezer:365,pantry:180}],
+  [["c2","juice","tea drink","bottled"],{fridge:5,freezer:0,pantry:1}],
 ];
 function shelfLife(name){
-  const n=name.toLowerCase();
+  const n=(name||"").toLowerCase();
   for(const [kws,d] of FRESH){ for(const kw of kws){ if(n.includes(kw)) return d; } }
   return null;
 }
@@ -703,6 +783,8 @@ function itemCardHTML(it,mode){
   if(mode==="grocery"){ sub.push(`<span class="pill cat">${catIco} ${it.category}</span>`); }
   if(it.qty) sub.push(`<span>${escapeHtml(it.qty)}</span>`);
   if(fs){ sub.push(`<span class="pill ${fs.level==='bad'?'bad':fs.level==='warn'?'warn':'ok'}">${fs.level==='ok'?'🟢':fs.level==='warn'?'⏳':'⚠️'} ${fs.label}</span>`); }
+  if(mode!=="grocery" && it.opened) sub.push(`<span class="pill info">📂 Opened</span>`);
+  else if(mode!=="grocery" && !it.opened && shelfLife(it.name)) sub.push(`<button class="pill openpill" data-open="${it.id}">📂 Mark open</button>`);
   if(it.store && it.store!=="pantry" && mode!=="grocery") sub.push(`<span class="pill info">${it.store==='fridge'?'❄️ Fridge':'🧊 Freezer'}</span>`);
 
   const barHTML=(it.percent!=null)?`<div class="bar ${pctClass(it.percent)}"><i style="width:${it.percent}%"></i></div>`:"";
@@ -852,6 +934,8 @@ $$(".tabbtn").forEach(b=>b.addEventListener("click",()=>switchTab(b.dataset.tab)
 document.addEventListener("click",e=>{
   const filt=e.target.closest("[data-filter]");
   if(filt){ const f=filt.dataset.filter; activeFilter = (f==="all"||activeFilter===f) ? null : f; renderPantry(); return; }
+  const openb=e.target.closest("[data-open]");
+  if(openb){ markOpened(openb.dataset.open); return; }
   const move=e.target.closest("[data-move]");
   if(move){ moveItem(move.dataset.move); return; }
   const check=e.target.closest("[data-check]");
@@ -863,6 +947,13 @@ document.addEventListener("click",e=>{
 });
 
 function getItem(id){ return state.items.find(i=>i.id===id); }
+function markOpened(id){
+  const it=getItem(id); if(!it) return;
+  it.opened=todayISO();
+  save(); renderAll();
+  const fs=freshStatus(it);
+  toast(fs?`📂 “${it.name}” opened · best used within ${fs.daysLeft} day(s)`:`📂 “${it.name}” marked opened`,"good");
+}
 function moveItem(id){
   const it=getItem(id); if(!it) return;
   it.location = it.location==="pantry" ? "grocery" : "pantry";
@@ -980,6 +1071,12 @@ $("#fName").addEventListener("input",()=>{
 });
 $("#fExp").addEventListener("change",updateFreshInfo);
 $("#fOpen").addEventListener("change",updateFreshInfo);
+$("#chipOpenToday").addEventListener("click",()=>{
+  const el=$("#fOpen");
+  if(el.value===todayISO()){ el.value=""; toast("Marked as unopened","good"); }   // toggle off
+  else { el.value=todayISO(); }
+  updateFreshInfo();
+});
 
 function updateFreshInfo(){
   const box=$("#freshInfo");
@@ -1109,6 +1206,7 @@ $("#camClose").addEventListener("click",closeCamera);
 $("#camCancel2").addEventListener("click",closeCamera);
 
 $("#chipScanItem").addEventListener("click",()=>openCamera("barcode"));
+$("#chipFindImg").addEventListener("click",findImageByName);
 $("#chipScanDate").addEventListener("click",()=>openCamera("date"));
 
 // Barcode scanning via native BarcodeDetector
@@ -1157,12 +1255,31 @@ async function lookupBarcode(code){
     }
   }catch(e){ toast("Lookup failed (offline?) — enter manually","warn"); }
 }
+// Find a product photo by name (Open Food Facts search). Name matching is approximate — user confirms by saving.
+async function findImageByName(){
+  const nm=$("#fName").value.trim();
+  if(nm.length<2){ toast("Type the item name first","warn"); return; }
+  toast("🔎 Searching for a “"+nm+"” image…","good");
+  try{
+    const url=`https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(nm)}&search_simple=1&action=process&json=1&page_size=5&fields=product_name,image_front_url,image_front_small_url`;
+    const r=await fetch(url); const j=await r.json();
+    const hit=(j.products||[]).find(p=>p.image_front_small_url||p.image_front_url);
+    if(hit){
+      pendingPhoto=hit.image_front_small_url||hit.image_front_url;
+      showPhoto(pendingPhoto);
+      toast(`✓ Found “${hit.product_name||nm}” — Save if it looks right, or try a barcode`,"good");
+    }else{
+      toast("No image found — try a barcode scan or take your own photo","warn");
+    }
+  }catch(e){ toast("Image search failed (offline?) — take your own photo","warn"); }
+}
 function guessCatFromOFF(tags){
   if(!tags) return null;
   const t=tags.join(" ");
   const map=[["milk|dairy|cheese|yogurt|butter","Dairy/Non-Dairy"],["meat|fish|seafood|egg|poultry","Protein"],
+    ["vegetable|fruit|produce","Fruit/Veggies"],
     ["sauce|condiment|ketchup|mustard|mayonnaise","Condiments"],["oil|vinegar","Sauces/Oils"],
-    ["spice|seasoning|herb","Spices"],["pasta|noodle|rice|cereal|grain","Pasta/Grains/Noodles"],
+    ["spice|seasoning|herb","Seasonings"],["pasta|noodle|rice|cereal|grain","Pasta/Grains/Noodles"],
     ["frozen","Frozen"],["beverage|drink|water|juice|soda","Beverages"],["sugar|flour|baking|dessert","Baking"],
     ["canned|soup|tomato","Canned/Soup"],["dried|dry","Dried"],["supplement|protein-powder","Supplements"]];
   for(const [re,c] of map){ if(new RegExp(re).test(t)) return c; }
@@ -1171,15 +1288,35 @@ function guessCatFromOFF(tags){
 
 // Shutter: photo capture, and for date -> OCR
 $("#camShutter").addEventListener("click",async()=>{
-  const dataUrl=toThumb(camVideo, camMode==="date"?900:420, camMode==="date"?0.8:0.62);
   if(camMode==="date"){
-    const full=toThumb(camVideo,1200,0.85);
+    const proc=captureDateRegion();   // crop to the box + preprocess for OCR
     closeCamera();
-    await ocrDate(full);
+    await ocrDate(proc);
   }else{
-    pendingPhoto=dataUrl; closeCamera(); showPhoto(pendingPhoto); toast("Photo captured","good");
+    pendingPhoto=toThumb(camVideo,420,0.62); closeCamera(); showPhoto(pendingPhoto); toast("Photo captured","good");
   }
 });
+
+// Crop to the on-screen scan box, upscale 2.2×, grayscale + contrast + soft threshold → much cleaner OCR
+function captureDateRegion(){
+  const v=camVideo, vw=v.videoWidth||1280, vh=v.videoHeight||720;
+  const bx=Math.round(vw*0.06), by=Math.round(vh*0.30), bw=Math.round(vw*0.88), bh=Math.round(vh*0.34);
+  const scale=2.2;
+  const c=document.createElement("canvas"); c.width=Math.round(bw*scale); c.height=Math.round(bh*scale);
+  const ctx=c.getContext("2d");
+  ctx.drawImage(v, bx,by,bw,bh, 0,0,c.width,c.height);
+  try{
+    const img=ctx.getImageData(0,0,c.width,c.height), D=img.data, contrast=1.5;
+    for(let i=0;i<D.length;i+=4){
+      let g=0.299*D[i]+0.587*D[i+1]+0.114*D[i+2];
+      g=(g-128)*contrast+128;                 // boost contrast
+      g=g<100?0:(g>165?255:g);                // soft threshold to black/white
+      D[i]=D[i+1]=D[i+2]=g;
+    }
+    ctx.putImageData(img,0,0);
+  }catch(e){}
+  return c.toDataURL("image/png");
+}
 
 /* ----- OCR expiry date via Tesseract.js (lazy CDN load) ----- */
 let tessLoaded=false;
@@ -1197,32 +1334,40 @@ async function ocrDate(dataUrl){
   toast("🔎 Reading date…","good");
   try{
     await loadTesseract();
-    const {data}=await Tesseract.recognize(dataUrl,"eng");
-    const txt=(data.text||"").replace(/\n/g," ");
-    const iso=parseDate(txt);
+    let text="";
+    try{
+      // worker lets us restrict characters to those found in dates → big accuracy win
+      const worker=await Tesseract.createWorker("eng");
+      await worker.setParameters({
+        tessedit_char_whitelist:"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz /.:-",
+        tessedit_pageseg_mode:"6"
+      });
+      const r=await worker.recognize(dataUrl); text=r.data.text||"";
+      await worker.terminate();
+    }catch(e){
+      const r=await Tesseract.recognize(dataUrl,"eng"); text=r.data.text||"";
+    }
+    const iso=parseDate(text);
     if(iso){ $("#fExp").value=iso; updateFreshInfo(); toast("📅 Found expiry: "+iso,"good"); }
-    else { toast("Couldn't read a date — please type it. (Saw: "+txt.slice(0,24).trim()+"…)","warn"); }
+    else { toast("Couldn't read the date clearly — frame just the date & try again, or type it","warn"); }
   }catch(e){ toast("OCR unavailable (offline?) — type the date","warn"); }
 }
-function parseDate(t){
-  t=t.replace(/[^\w\/\.\-: ]/g," ");
-  const months={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
-  let m;
-  // DD MMM YYYY  or  MMM YYYY
-  m=t.match(/(\d{1,2})?\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s*(\d{2,4})/i);
-  if(m){ let y=+m[3]; if(y<100)y+=2000; const mo=months[m[2].toLowerCase()]; const d=m[1]?+m[1]:1; return fmt(y,mo,d); }
-  // YYYY-MM-DD / YYYY/MM/DD
-  m=t.match(/(20\d{2})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})/);
-  if(m) return fmt(+m[1],+m[2],+m[3]);
-  // DD/MM/YYYY or MM/DD/YYYY (assume DD/MM if first>12)
-  m=t.match(/(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})/);
-  if(m){ let a=+m[1],b=+m[2],y=+m[3]; if(y<100)y+=2000; let d,mo; if(a>12){d=a;mo=b;}else{mo=a;d=b;} return fmt(y,mo,d); }
-  // MM/YYYY
-  m=t.match(/(\d{1,2})[\/\-\.](20\d{2})/);
-  if(m) return fmt(+m[2],+m[1],1);
+// Robust parser: handles 19 AUG 2026 · AUG 2026 · 2026-08-19 · 19/08/2026 · 08/2026 · full month names · BB/EXP prefixes
+function parseDate(raw){
+  const t=(raw||"").toUpperCase().replace(/[^0-9A-Z]+/g," ").trim();
+  const M={JAN:1,FEB:2,MAR:3,APR:4,MAY:5,JUN:6,JUL:7,AUG:8,SEP:9,SEPT:9,OCT:10,NOV:11,DEC:12,
+    JANUARY:1,FEBRUARY:2,MARCH:3,APRIL:4,JUNE:6,JULY:7,AUGUST:8,SEPTEMBER:9,OCTOBER:10,NOVEMBER:11,DECEMBER:12};
+  const Y=y=>{y=+y; return y<100?y+2000:y;};
+  let m,r;
+  if((m=t.match(/(\d{1,2})\s*([A-Z]{3,9})\s*(\d{2,4})/))&&M[m[2]]&&(r=fmt(Y(m[3]),M[m[2]],+m[1]))) return r;        // DD MMM YYYY
+  if((m=t.match(/([A-Z]{3,9})\s*(\d{4})(?!\d)/))&&M[m[1]]) return fmt(+m[2],M[m[1]],1);                              // MMM YYYY (before MMM DD, so "AUG 2026" isn't split)
+  if((m=t.match(/([A-Z]{3,9})\s+(\d{1,2})\s+(\d{2,4})/))&&M[m[1]]&&(r=fmt(Y(m[3]),M[m[1]],+m[2]))) return r;        // MMM DD YYYY
+  if((m=t.match(/(20\d{2})\s*(\d{1,2})\s*(\d{1,2})/))&&(r=fmt(+m[1],+m[2],+m[3]))) return r;                         // YYYY MM DD
+  if((m=t.match(/(\d{1,2})\s+(\d{1,2})\s+(\d{2,4})/))){ let a=+m[1],b=+m[2],d,mo; if(a>12){d=a;mo=b;}else if(b>12){d=b;mo=a;}else{d=a;mo=b;} if((r=fmt(Y(m[3]),mo,d))) return r; } // DD MM YYYY
+  if((m=t.match(/(\d{1,2})\s+(20\d{2})/))) return fmt(+m[2],+m[1],1);                                                 // MM YYYY
   return null;
 }
-function fmt(y,mo,d){ if(mo<1||mo>12||d<1||d>31)return null; return `${y}-${String(mo).padStart(2,"0")}-${String(d).padStart(2,"0")}`; }
+function fmt(y,mo,d){ if(!(y>=2000&&y<=2100)||mo<1||mo>12||d<1||d>31)return null; return `${y}-${String(mo).padStart(2,"0")}-${String(d).padStart(2,"0")}`; }
 
 /* ============================================================
    VOICE COMMANDS  (Web Speech API)
