@@ -143,7 +143,8 @@ main{padding:12px 12px 90px;max-width:640px;margin:0 auto}
   animation:slideup .25s ease;
 }
 @keyframes slideup{from{transform:translateY(40px);opacity:.6}to{transform:translateY(0);opacity:1}}
-.grab{width:40px;height:4px;background:var(--line);border-radius:3px;margin:8px auto 12px}
+.grab{width:44px;height:5px;background:var(--line);border-radius:3px;margin:2px auto 10px;box-sizing:content-box;padding:9px 40px;background-clip:content-box;cursor:pointer}
+.grab:active{background:var(--muted);background-clip:content-box}
 .sheet h2{margin:4px 0 16px;font-size:19px}
 .field{margin-bottom:14px}
 .field label{display:block;font-size:12.5px;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px}
@@ -209,7 +210,9 @@ main{padding:12px 12px 90px;max-width:640px;margin:0 auto}
 .voicehelp{background:#e3f2fd;border-radius:12px;padding:12px 14px;font-size:13px;color:#0d47a1;line-height:1.6;margin-top:4px}
 .voicehelp code{background:rgba(255,255,255,.6);padding:1px 6px;border-radius:6px;font-weight:700}
 .summary{display:flex;gap:10px;margin:4px 4px 14px}
-.summary .scard{flex:1;background:var(--card);border-radius:14px;box-shadow:var(--shadow);padding:12px;text-align:center}
+.summary .scard{flex:1;background:var(--card);border-radius:14px;box-shadow:var(--shadow);padding:12px;text-align:center;cursor:pointer;transition:.12s;border:2px solid transparent}
+.summary .scard:active{transform:scale(.96)}
+.summary .scard.on{border-color:var(--green-l);background:#f1f8e9}
 .summary .snum{font-size:22px;font-weight:800;color:var(--green-d)}
 .summary .slab{font-size:11px;color:var(--muted);font-weight:600;margin-top:2px;text-transform:uppercase;letter-spacing:.4px}
 .linkbtn{color:var(--green);font-weight:700;background:none}
@@ -381,7 +384,7 @@ const todayISO=()=>new Date().toISOString().slice(0,10);
 
 /* ---------- Categories ---------- */
 const CATS=[
-  ["Protein","🥩"],["Dairy/Non-Dairy","🥛"],["Baking","🧁"],
+  ["Protein","🥩"],["Fruit/Veggies","🥬"],["Dairy/Non-Dairy","🥛"],["Baking","🧁"],
   ["Spices","🌶️"],["Cooking Spices","🧂"],["Sauces/Oils","🫙"],
   ["Condiments","🥫"],["Canned/Soup","🍲"],["Pasta/Grains/Noodles","🍜"],
   ["Frozen","🧊"],["Dried","🍇"],["Beverages","🥤"],
@@ -389,6 +392,35 @@ const CATS=[
 ];
 const CAT_ICON=Object.fromEntries(CATS);
 const CAT_ORDER=CATS.map(c=>c[0]);
+
+/* ---------- Per-item emoji (so eggs ≠ beef) ---------- */
+const ITEM_EMOJI=[
+  [["fish ball"],"🍡"],[["salted egg"],"🥚"],[["egg"],"🥚"],
+  [["chicken"],"🍗"],[["beef","chuck","steak"],"🥩"],
+  [["hotdog","sausage","frank"],"🌭"],[["spam","bacon","ham","pork","ribs","chop"],"🥓"],
+  [["shrimp","prawn"],"🦐"],[["fish","sardine","tuna","salmon"],"🐟"],[["tofu"],"🍢"],
+  [["milk"],"🥛"],[["butter"],"🧈"],[["cheese","mozzarella"],"🧀"],[["coconut"],"🥥"],[["cream"],"🍦"],
+  [["broccoli"],"🥦"],[["carrot"],"🥕"],[["mushroom"],"🍄"],
+  [["spinach","bok choy","kangkong","malunggay","kalabasa","sitaw","lettuce","cabbage","greens","dahon","kelp","lemongrass"],"🥬"],
+  [["bell pepper"],"🫑"],[["chili","pepper flake","cayenne","paprika"],"🌶️"],
+  [["lemon"],"🍋"],[["lime"],"🍋"],[["mango"],"🥭"],[["banana","strawber"],"🍓"],[["cranberr","grape","raisin"],"🍇"],[["apple"],"🍎"],[["tomato"],"🍅"],
+  [["garlic"],"🧄"],[["onion"],"🧅"],[["ginger"],"🫚"],[["corn"],"🌽"],[["potato"],"🥔"],[["peanut"],"🥜"],[["sesame"],"🌰"],
+  [["rice noodle","noodle","udon","ramen","pasta","spaghetti","lasagna","vermicelli"],"🍜"],[["rice"],"🍚"],[["oats"],"🥣"],[["bean","mung"],"🫘"],[["flour","semolina","tapioca","starch"],"🌾"],[["bread","tortilla"],"🫓"],
+  [["honey","molasses","syrup"],"🍯"],[["icing","powdered sugar","sugar"],"🍬"],
+  [["cinnamon","cumin","coriander","turmeric","oregano","basil","thyme","bay leaf","sage","anise","clove","cardamon","cardamom","fennel","tarragon","curry","seasoning","savoury","baking soda","baking powder","cornstarch"],"🧂"],
+  [["olive","canola","sesame oil","cooking spray","oil"],"🫒"],[["vinegar"],"🍶"],
+  [["gochujang","black bean paste","curry paste"],"🌶️"],
+  [["soy sauce","fish sauce","oyster","worcestershire","liquid smoke","liquid seasoning","koji","hoisin","tempura","sriracha","hot sauce","bbq","ketchup","mustard","mayo","sauce"],"🥫"],
+  [["wine","sake","mirin"],"🍶"],[["pickle","peperoncini","sundried"],"🥒"],
+  [["coffee","mccafe"],"☕"],[["tea"],"🍵"],[["water","juice","soda","c2","drink"],"🥤"],
+  [["protein","whey","supplement","vitamin","creatine"],"💊"],
+  [["cube","stock","broth","maggi","knorr"],"🧊"],
+];
+function itemEmoji(name,cat){
+  const n=(name||"").toLowerCase();
+  for(const [kws,e] of ITEM_EMOJI){ for(const kw of kws){ if(n.includes(kw)) return e; } }
+  return CAT_ICON[cat]||"📦";
+}
 
 /* ---------- Auto-categorization ---------- */
 // keyword -> category (checked as substring, longest first)
@@ -400,8 +432,9 @@ const CAT_RULES=[
   [["bay leaf","cube","coriander","kelp","fennel","sage","star anise","tarragon","turmeric","cardamon","cardamom","clove","ginger","cinnamon stick"],"Cooking Spices"],
   [["oil","vinegar","soy sauce","fish sauce","oyster sauce","cooking wine","sake","mirin","sriracha","hot sauce","worcestershire","liquid smoke","sesame","shaoxing","koji","liquid seasoning","cooking spray","sweet soy"],"Sauces/Oils"],
   [["mustard","ketchup","mayonnaise","pickle","peperoncini","curry paste","sundried","bbq"],"Condiments"],
-  [["tomato paste","tomato sauce","canned","soup","broth"],"Canned/Soup"],
-  [["pasta","noodle","rice","udon","lasagna","oats","mung bean","spaghetti","macaroni","grain","quinoa"],"Pasta/Grains/Noodles"],
+  [["tomato paste","tomato sauce","canned","soup","broth","stock"],"Canned/Soup"],
+  [["bok choy","broccoli","carrot","kalabasa","kangkong","water crest","watercress","malunggay","mushroom","sitaw","spinach","bell pepper","lettuce","cabbage","cucumber","eggplant","okra","celery","lemon","lime","banana","apple","mango","grapes","fresh","veggie","vegetable"],"Fruit/Veggies"],
+  [["pasta","noodle","rice","udon","lasagna","oats","mung bean","spaghetti","macaroni","grain","quinoa","tortilla"],"Pasta/Grains/Noodles"],
   [["frozen"],"Frozen"],
   [["dried cranberr","raisin","dried fruit"],"Dried"],
   [["water","juice","soda","tea","c2","cola","drink","beverage"],"Beverages"],
@@ -451,6 +484,31 @@ const KEY="pantry_grocery_v1";
 function load(){
   try{const raw=localStorage.getItem(KEY); if(raw){state=Object.assign(state,JSON.parse(raw));}}catch(e){}
   if(!state.items.length && !localStorage.getItem(KEY+"_seeded")){ seed(); localStorage.setItem(KEY+"_seeded","1"); }
+  seedGroceryV1();
+}
+
+/* One-time: add the grocery list from the user's screenshots (runs once for existing users too) */
+function seedGroceryV1(){
+  if(localStorage.getItem(KEY+"_gro_v1")) return;
+  const G=(name,category,qty)=>({id:uid(),name,category,location:"grocery",percent:null,qty:qty||"",checked:false,photo:null,exp:null,opened:null,store:"pantry",note:""});
+  const add=[
+    ["Chicken Thighs","Protein"],["Ground Beef","Protein"],["Spam","Protein"],
+    ["Chicken Wings","Protein"],["Filipino Hotdog","Protein"],["Pork Chops","Protein"],
+    ["Chicken Stock","Canned/Soup"],
+    ["Toasted Sesame Seeds","Cooking Spices"],["Baking Soda","Cooking Spices"],
+    ["Dahon Ng Sili","Frozen"],
+    ["Maggi Seasoning Ginisa","Other"],["Salted Egg","Other"],
+    ["Bok Choy","Fruit/Veggies"],["Broccoli","Fruit/Veggies"],["Carrots","Fruit/Veggies","2 of them"],
+    ["Kalabasa","Fruit/Veggies"],["Kangkong (Water Crest)","Fruit/Veggies"],["Malunggay","Fruit/Veggies"],
+    ["Mushrooms","Fruit/Veggies","227g per package"],["Sitaw","Fruit/Veggies"],["Spinach","Fruit/Veggies"],
+    ["Bell Peppers","Fruit/Veggies"],["Limes","Fruit/Veggies"],
+    ["Gochujang","Condiments"],
+    ["Corn Tortillas","Pasta/Grains/Noodles"],["Ramen Noodles","Pasta/Grains/Noodles"],["Spaghetti","Pasta/Grains/Noodles"],
+  ];
+  const existing=new Set(state.items.map(i=>i.name.toLowerCase()));
+  add.forEach(([name,cat,qty])=>{ if(!existing.has(name.toLowerCase())) state.items.push(G(name,cat,qty)); });
+  localStorage.setItem(KEY+"_gro_v1","1");
+  save();
 }
 function save(){ try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){ toast("Storage full — remove some photos","bad"); } }
 
@@ -569,6 +627,7 @@ function freshStatus(item){
    ============================================================ */
 let currentTab="pantry";
 let searchQ="";
+let activeFilter=null; // null | 'low' | 'expiring'
 
 function itemMatchesSearch(it){
   if(!searchQ) return true;
@@ -579,10 +638,10 @@ function pctClass(p){ if(p==null) return ""; if(p<=25) return "low"; if(p<=60) r
 
 function itemCardHTML(it,mode){
   const fs=freshStatus(it);
-  const ico=CAT_ICON[it.category]||"📦";
-  const thumb=it.photo?`<img src="${it.photo}" alt="">`:ico;
+  const catIco=CAT_ICON[it.category]||"📦";
+  const thumb=it.photo?`<img src="${it.photo}" alt="">`:itemEmoji(it.name,it.category);
   let sub=[];
-  if(mode==="grocery"){ sub.push(`<span class="pill cat">${ico} ${it.category}</span>`); }
+  if(mode==="grocery"){ sub.push(`<span class="pill cat">${catIco} ${it.category}</span>`); }
   if(it.qty) sub.push(`<span>${escapeHtml(it.qty)}</span>`);
   if(fs){ sub.push(`<span class="pill ${fs.level==='bad'?'bad':fs.level==='warn'?'warn':'ok'}">${fs.level==='ok'?'🟢':fs.level==='warn'?'⏳':'⚠️'} ${fs.label}</span>`); }
   if(it.store && it.store!=="pantry" && mode!=="grocery") sub.push(`<span class="pill info">${it.store==='fridge'?'❄️ Fridge':'🧊 Freezer'}</span>`);
@@ -614,21 +673,31 @@ function itemCardHTML(it,mode){
 
 function renderPantry(){
   const host=$("#view-pantry");
-  const items=state.items.filter(i=>i.location==="pantry" && itemMatchesSearch(i));
-  if(!items.length){ host.innerHTML=emptyHTML(searchQ?"🔍":"🥫", searchQ?"No pantry items match your search.":"Your pantry is empty. Tap ＋ to add items."); return; }
+  let items=state.items.filter(i=>i.location==="pantry" && itemMatchesSearch(i));
+  if(activeFilter==="low") items=items.filter(i=>i.percent!=null && i.percent<=25);
+  else if(activeFilter==="expiring") items=items.filter(i=>{const f=freshStatus(i);return f&&f.daysLeft<=3;});
 
-  let html="";
-  // summary
-  const total=state.items.filter(i=>i.location==="pantry").length;
-  const low=state.items.filter(i=>i.location==="pantry" && i.percent!=null && i.percent<=25).length;
-  const expiring=state.items.filter(i=>{const f=freshStatus(i);return i.location==="pantry"&&f&&f.daysLeft<=3;}).length;
+  // summary (from full pantry; tap a card to filter)
+  const pantryAll=state.items.filter(i=>i.location==="pantry");
+  const total=pantryAll.length;
+  const low=pantryAll.filter(i=>i.percent!=null && i.percent<=25).length;
+  const expiring=pantryAll.filter(i=>{const f=freshStatus(i);return f&&f.daysLeft<=3;}).length;
+  let summary="";
   if(!searchQ){
-    html+=`<div class="summary">
-      <div class="scard"><div class="snum">${total}</div><div class="slab">Items</div></div>
-      <div class="scard"><div class="snum" style="color:${low?'#e53935':'#2e7d32'}">${low}</div><div class="slab">Running low</div></div>
-      <div class="scard"><div class="snum" style="color:${expiring?'#ef6c00':'#2e7d32'}">${expiring}</div><div class="slab">Expiring</div></div>
+    summary=`<div class="summary">
+      <div class="scard ${!activeFilter?'on':''}" data-filter="all"><div class="snum">${total}</div><div class="slab">All items</div></div>
+      <div class="scard ${activeFilter==='low'?'on':''}" data-filter="low"><div class="snum" style="color:${low?'#e53935':'#2e7d32'}">${low}</div><div class="slab">Running low</div></div>
+      <div class="scard ${activeFilter==='expiring'?'on':''}" data-filter="expiring"><div class="snum" style="color:${expiring?'#ef6c00':'#2e7d32'}">${expiring}</div><div class="slab">Expiring</div></div>
     </div>`;
   }
+
+  if(!items.length){
+    const msg=activeFilter==="low"?"Nothing is running low 🎉":activeFilter==="expiring"?"Nothing is expiring soon 🎉":(searchQ?"No pantry items match your search.":"Your pantry is empty. Tap ＋ to add items.");
+    host.innerHTML=summary+emptyHTML(searchQ?"🔍":activeFilter?"✅":"🥫", msg);
+    return;
+  }
+
+  let html=summary;
 
   if(state.settings.sort==="category"){
     for(const cat of CAT_ORDER){
@@ -722,6 +791,8 @@ $$(".tabbtn").forEach(b=>b.addEventListener("click",()=>switchTab(b.dataset.tab)
    ITEM MOVE / EDIT / CHECK  (event delegation)
    ============================================================ */
 document.addEventListener("click",e=>{
+  const filt=e.target.closest("[data-filter]");
+  if(filt){ const f=filt.dataset.filter; activeFilter = (f==="all"||activeFilter===f) ? null : f; renderPantry(); return; }
   const move=e.target.closest("[data-move]");
   if(move){ moveItem(move.dataset.move); return; }
   const check=e.target.closest("[data-check]");
@@ -767,6 +838,7 @@ $("#btnSort").addEventListener("click",()=>{
 const searchEl=$("#search");
 searchEl.addEventListener("input",()=>{
   searchQ=searchEl.value.trim().toLowerCase();
+  if(searchQ) activeFilter=null;
   $("#sclear").style.display=searchQ?"flex":"none";
   if(currentTab==="notes"){ filterNotes(); } else renderAll();
 });
@@ -1098,12 +1170,12 @@ function fmt(y,mo,d){ if(mo<1||mo>12||d<1||d>31)return null; return `${y}-${Stri
    ============================================================ */
 const voiceScrim=$("#voiceScrim");
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-let recog=null, listening=false;
+let recog=null, listening=false, manualStop=false, restartTimer=null;
 
 $("#fabMic").addEventListener("click",()=>{
   if(!SR){ toast("Voice not supported in this browser (try Chrome)","warn"); return; }
   voiceScrim.classList.add("on");
-  $("#voiceStatus").textContent="Tap the mic and speak…";
+  $("#voiceStatus").textContent="Tap “Start Listening” and speak…";
 });
 $("#btnCancelVoice").addEventListener("click",()=>{ stopVoice(); voiceScrim.classList.remove("on"); });
 voiceScrim.addEventListener("click",e=>{ if(e.target===voiceScrim){ stopVoice(); voiceScrim.classList.remove("on"); } });
@@ -1111,25 +1183,52 @@ $("#btnVoiceStart").addEventListener("click",startVoice);
 
 function startVoice(){
   if(!SR) return;
-  stopVoice();
-  recog=new SR(); recog.lang="en-US"; recog.interimResults=true; recog.maxAlternatives=3;
-  listening=true; $("#fabMic").classList.add("listening");
-  $("#voiceStatus").innerHTML="🎧 <b>Listening…</b>";
-  $("#btnVoiceStart").textContent="⏹ Stop";
-  $("#btnVoiceStart").onclick=stopVoice;
+  if(listening) return;                    // ignore double taps while already listening
+  clearTimeout(restartTimer);
+  manualStop=false; listening=true;
+  $("#fabMic").classList.add("listening");
+  $("#voiceStatus").innerHTML="🎧 <b>Listening…</b> speak now";
+  $("#btnVoiceStart").textContent="⏹ Stop"; $("#btnVoiceStart").onclick=stopVoice;
+  spinUpRecog();
+}
+function spinUpRecog(){
+  try{ recog=new SR(); }catch(e){ finalizeStop(); return; }
+  recog.lang="en-US"; recog.interimResults=true; recog.continuous=false; recog.maxAlternatives=3;
   recog.onresult=(ev)=>{
     let txt=""; for(const r of ev.results) txt+=r[0].transcript;
     $("#voiceStatus").innerHTML=`“${escapeHtml(txt)}”`;
     if(ev.results[ev.results.length-1].isFinal){ handleVoice(txt.trim().toLowerCase(), txt.trim()); }
   };
-  recog.onerror=(e)=>{ $("#voiceStatus").textContent="Mic error: "+e.error; stopVoice(); };
-  recog.onend=()=>{ if(listening){ try{recog.start();}catch(e){} } };
-  try{recog.start();}catch(e){}
+  recog.onerror=(e)=>{
+    // 'aborted' & 'no-speech' fire randomly and are harmless — swallow them and keep listening
+    if(e.error==="no-speech"||e.error==="aborted") return;
+    if(e.error==="not-allowed"||e.error==="service-not-allowed"){
+      $("#voiceStatus").textContent="🎤 Mic permission blocked — allow microphone access, then try again.";
+      manualStop=true;
+    }else if(e.error==="network"){
+      $("#voiceStatus").textContent="🌐 Voice recognition needs an internet connection.";
+    }
+  };
+  recog.onend=()=>{
+    if(listening && !manualStop){
+      // brief pause before restarting so back-to-back commands don't trigger 'aborted' loops
+      restartTimer=setTimeout(()=>{ if(listening && !manualStop) spinUpRecog(); }, 250);
+    }else{
+      finalizeStop();
+    }
+  };
+  try{ recog.start(); }catch(e){ /* start race — onend/onerror recovers */ }
 }
 function stopVoice(){
-  listening=false; $("#fabMic").classList.remove("listening");
+  manualStop=true; listening=false;
+  clearTimeout(restartTimer);
+  if(recog){ try{ recog.stop(); }catch(e){} }
+  finalizeStop();
+}
+function finalizeStop(){
+  listening=false;
+  $("#fabMic").classList.remove("listening");
   $("#btnVoiceStart").textContent="🎙️ Start Listening"; $("#btnVoiceStart").onclick=startVoice;
-  if(recog){ try{recog.stop();}catch(e){} recog=null; }
 }
 
 function findItemByName(q){
@@ -1251,6 +1350,38 @@ function toast(msg,kind){
   requestAnimationFrame(()=>el.classList.add("show"));
   setTimeout(()=>{ el.classList.remove("show"); setTimeout(()=>el.remove(),300); }, 3200);
 }
+
+/* ============================================================
+   SWIPE-DOWN / TAP-HANDLE TO CLOSE SHEETS
+   ============================================================ */
+function enableSwipeClose(sheet, closeFn){
+  let startY=0, curY=0, dragging=false;
+  sheet.addEventListener("touchstart",(e)=>{
+    if(sheet.scrollTop>0){ dragging=false; return; }   // let content scroll instead
+    dragging=true; startY=curY=e.touches[0].clientY; sheet.style.transition="none";
+  },{passive:true});
+  sheet.addEventListener("touchmove",(e)=>{
+    if(!dragging) return;
+    curY=e.touches[0].clientY;
+    const dy=curY-startY;
+    if(dy>0){ sheet.style.transform=`translateY(${dy}px)`; if(dy>6 && e.cancelable) e.preventDefault(); }
+    else { dragging=false; sheet.style.transform=""; }   // upward = normal scroll
+  },{passive:false});
+  const finish=()=>{
+    if(!dragging) return; dragging=false;
+    const dy=curY-startY;
+    sheet.style.transition="transform .2s ease";
+    if(dy>110){ sheet.style.transform="translateY(100%)"; setTimeout(()=>{ closeFn(); sheet.style.transform=""; sheet.style.transition=""; },190); }
+    else { sheet.style.transform=""; }
+  };
+  sheet.addEventListener("touchend",finish);
+  sheet.addEventListener("touchcancel",finish);
+  const grab=sheet.querySelector(".grab");
+  if(grab) grab.addEventListener("click",closeFn);
+}
+enableSwipeClose($("#itemSheet"), closeItemSheet);
+enableSwipeClose($("#noteScrim .sheet"), ()=>noteScrim.classList.remove("on"));
+enableSwipeClose($("#voiceScrim .sheet"), ()=>{ stopVoice(); voiceScrim.classList.remove("on"); });
 
 /* ============================================================
    INIT
