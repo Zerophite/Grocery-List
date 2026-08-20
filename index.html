@@ -631,53 +631,25 @@ const todayISO=()=>new Date().toISOString().slice(0,10);
 
 /* ---------- Categories ---------- */
 const DEFAULT_CATS=[
-  ["Rice","🍚"],["Grains","🌾"],["Pasta","🍝"],["Noodles","🍜"],
-  ["Meat","🥩"],["Poultry","🍗"],["Seafood","🦐"],["Eggs","🥚"],["Dairy","🥛"],
-  ["Vegetables","🥬"],["Fruits","🍎"],
-  ["Frozen Vegetables","🥦"],["Frozen Fruits","🫐"],["Frozen Foods","🥶"],["Frozen","🧊"],
-  ["Canned","🥫"],["Jarred","🫙"],
-  ["Sauces","🍶"],["Condiments","🧴"],["Liquid Seasonings","🫗"],["Oils","🫒"],
-  ["Spices","🌶️"],["Seasonings","🧂"],["Baking","🧁"],["Bakery","🍞"],
-  ["Beverages","🥤"],["Snacks","🍪"],["Dried","🍂"],["Supplements","💊"],
-  ["Other","📦"]
+  ["Protein","🥩"],["Fruit/Veggies","🥬"],["Dairy/Non-Dairy","🥛"],["Baking","🧁"],
+  ["Seasonings","🌿"],["Cooking Spices","🧂"],["Sauces/Oils","🫙"],
+  ["Condiments","🥫"],["Canned/Soup","🍲"],["Pasta/Grains/Noodles","🍜"],
+  ["Frozen","🧊"],["Dried","🍂"],["Beverages","🥤"],
+  ["Supplements","💊"],["Other","📦"]
 ];
-// Route an item into the new granular category scheme by name (one-time re-sort + voice/barcode adds).
-function remapCategory(name, oldCat){
-  const n=(name||"").toLowerCase();
-  if(/\bfrozen\b/.test(n)){
-    if(/veg|broccoli|spinach|pea\b|peas|corn|carrot|bean|okra|cauliflower/.test(n)) return "Frozen Vegetables";
-    if(/berry|strawberr|blueberr|mango|banana|fruit|pineapple/.test(n)) return "Frozen Fruits";
-    return "Frozen Foods";
-  }
-  if(/\bflour\b|semolina/.test(n)) return "Baking";   // "rice flour" is a flour, not rice
-  if(/chicken|turkey|duck|poultry|drumstick/.test(n)) return "Poultry";
-  if(/shrimp|prawn|\bfish\b|sardine|salmon|tuna|squid|crab|seafood|bangus|tilapia|mussel|scallop|fish ball/.test(n)) return "Seafood";
-  if(/\begg\b|\beggs\b|salted egg/.test(n)) return "Eggs";
-  if(/beef|pork|lamb|\bmeat\b|bacon|sausage|hotdog|\bham\b|spam|ribs|\bchop|steak|chuck|luncheon/.test(n)) return "Meat";
-  if(/milk|cheese|butter|yogurt|\bcream\b|dairy|mozzarella|condensed|evaporated/.test(n)) return "Dairy";
-  if(/rice noodle|\bnoodle|ramen|vermicelli|udon|\bpho\b/.test(n)) return "Noodles";
-  if(/pasta|spaghetti|lasagna|macaroni|penne|fettuccine/.test(n)) return "Pasta";
-  if(/\brice\b/.test(n)) return "Rice";
-  if(/soy sauce|fish sauce|oyster sauce|liquid seasoning|\bmaggi\b|worcestershire|liquid smoke|hoisin/.test(n)) return "Liquid Seasonings";
-  if(/\boil\b|olive oil|sesame oil|canola|vegetable oil|cooking spray/.test(n)) return "Oils";
-  if(/vinegar|ketchup|catsup|mustard|mayo|pickle|relish|\bbbq\b|barbecue/.test(n)) return "Condiments";
-  if(/sauce|sriracha|gochujang|\bpaste\b|salsa|pesto|tabasco/.test(n)) return "Sauces";
-  if(/sugar|baking|cornstarch|starch|honey|cocoa|vanilla|yeast|icing|semolina|molasses/.test(n)) return "Baking";
-  if(/pepper flake|chili flake|cinnamon|cumin|paprika|cayenne|turmeric|coriander|clove|cardamom|cardamon|anise|fennel|bay leaf|peppercorn|nutmeg|allspice|\bchili\b|curry powder|\bkelp\b/.test(n)) return "Spices";
-  if(/seasoning|garlic powder|onion powder|italian|oregano|basil|thyme|\bsage\b|rosemary|tarragon|parsley|\bherb/.test(n)) return "Seasonings";
-  if(/flour|\boat|quinoa|\bgrain|barley|wheat|\bmung\b|lentil|cereal/.test(n)) return "Grains";
-  if(/\bcan\b|canned|\bsoup\b|broth|\bstock\b/.test(n)) return "Canned";
-  if(/\bjar\b|jarred/.test(n)) return "Jarred";
-  if(/coffee|\btea\b|juice|soda|\bwater\b|drink|beverage|cola/.test(n)) return "Beverages";
-  if(/protein|whey|vitamin|supplement|collagen|creatine/.test(n)) return "Supplements";
-  if(/bread|\bloaf\b|\bbun\b|bakery|tortilla|bagel|croissant/.test(n)) return "Bakery";
-  if(/chip|cracker|cookie|candy|chocolate|\bsnack|popcorn|pretzel/.test(n)) return "Snacks";
-  if(/dried|raisin|cranberr|jerky/.test(n)) return "Dried";
-  if(/apple|banana|mango|lemon|lime|orange|grape|berry|melon|pineapple|pear|peach|\bfruit/.test(n)) return "Fruits";
-  if(/broccoli|spinach|lettuce|cabbage|carrot|pepper|onion|garlic|potato|tomato|kangkong|malunggay|sitaw|bok choy|kalabasa|mushroom|okra|\bveg|greens|dahon|squash/.test(n)) return "Vegetables";
-  const map={"Protein":"Meat","Dairy/Non-Dairy":"Dairy","Cooking Spices":"Spices","Sauces/Oils":"Sauces","Canned/Soup":"Canned","Pasta/Grains/Noodles":"Grains","Fruit/Veggies":"Vegetables","Dried":"Dried","Beverages":"Beverages","Supplements":"Supplements","Baking":"Baking","Seasonings":"Seasonings","Condiments":"Condiments","Frozen":"Frozen"};
-  return map[oldCat] || "Other";
-}
+// Reverse of the bad round-15 auto-migration: map the granular names back to your original categories.
+const REV_CAT={
+  "Rice":"Pasta/Grains/Noodles","Grains":"Pasta/Grains/Noodles","Pasta":"Pasta/Grains/Noodles","Noodles":"Pasta/Grains/Noodles",
+  "Meat":"Protein","Poultry":"Protein","Seafood":"Protein","Eggs":"Protein",
+  "Dairy":"Dairy/Non-Dairy",
+  "Vegetables":"Fruit/Veggies","Fruits":"Fruit/Veggies",
+  "Frozen Vegetables":"Frozen","Frozen Fruits":"Frozen","Frozen Foods":"Frozen","Frozen":"Frozen",
+  "Canned":"Canned/Soup","Jarred":"Condiments",
+  "Sauces":"Sauces/Oils","Liquid Seasonings":"Sauces/Oils","Oils":"Sauces/Oils",
+  "Condiments":"Condiments","Spices":"Cooking Spices","Seasonings":"Seasonings",
+  "Baking":"Baking","Bakery":"Baking","Beverages":"Beverages","Snacks":"Other",
+  "Dried":"Dried","Supplements":"Supplements","Other":"Other"
+};
 let CAT_ORDER=[], CAT_ICON={};
 const DEFAULT_CAT_ICON=Object.fromEntries(DEFAULT_CATS);
 // Guess a sensible icon from a category name so custom categories (any user) aren't a blank box.
@@ -707,20 +679,22 @@ function ensureCat(name){
   return true;
 }
 function syncCatsFromItems(){ let added=false; state.items.forEach(i=>{ if(ensureCat(i.category)) added=true; }); return added; }
-const CATS_V=3;
-// One-time: adopt the new granular category scheme and re-sort existing items into it.
+const CATS_V=4;   // 4 = restored to your original categories after the bad auto-move
 let _migratedThisLoad=false;
-function migrateCats(){
+// One-time recovery: undo the round-15 auto-move by mapping granular names back to your original ones.
+function restoreOldCats(){
   if(state.catsV===CATS_V) return false;
+  let touched=false;
+  state.items.forEach(it=>{ if(REV_CAT[it.category] && REV_CAT[it.category]!==it.category){ it.category=REV_CAT[it.category]; touched=true; } });
+  // Reset the category list back to the original set (custom categories still in use are re-added below).
   state.cats = DEFAULT_CATS.map(([name,icon])=>({name,icon}));
-  state.items.forEach(it=>{ it.category = remapCategory(it.name, it.category); });
   state.catsV = CATS_V;
-  _migratedThisLoad=true;
-  return true;
+  if(touched) _migratedThisLoad=true;
+  return touched;
 }
 function rebuildCats(){
   if(!state.cats || !state.cats.length) state.cats = DEFAULT_CATS.map(([name,icon])=>({name,icon}));
-  migrateCats();        // upgrade old category sets once (safe/idempotent via state.catsV)
+  restoreOldCats();     // ONE-TIME fix of the bad auto-move (idempotent via state.catsV)
   syncCatsFromItems();  // keep any custom category an item still references
   CAT_ORDER=state.cats.map(c=>c.name);
   CAT_ICON=Object.fromEntries(state.cats.map(c=>[c.name,c.icon]));
@@ -1238,9 +1212,12 @@ const CAT_RULES=[
   [["protein","whey","vitamin","supplement","creatine","collagen"],"Supplements"],
 ];
 // Used only where there's no picker (voice / barcode). Prefers what THIS user has chosen before,
-// then falls back to name-based routing into the granular scheme.
+// then falls back to the original keyword rules.
 function autoCategory(name){
-  return preferredCategory(name) || remapCategory(name, "Other");
+  const pref=preferredCategory(name); if(pref) return pref;
+  const n=(name||"").toLowerCase();
+  for(const [kws,cat] of CAT_RULES){ for(const kw of kws){ if(n.includes(kw)) return cat; } }
+  return "Other";
 }
 
 /* ---------- Freshness database: days of good quality after OPENING (or after buying, for fresh produce/meat) ----------
