@@ -4,7 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#2e7d32">
-<title>Pantry &amp; Grocery</title>
+<title>PantryHub</title>
+<!-- Add-to-Home-Screen: names the icon "PantryHub" -->
+<meta name="application-name" content="PantryHub">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PantryHub">
+<link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22PantryHub%22%2C%22short_name%22%3A%22PantryHub%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23f4f6f2%22%2C%22theme_color%22%3A%22%232e7d32%22%2C%22start_url%22%3A%22.%2F%22%7D">
 <style>
 :root{
   --green:#2e7d32; --green-d:#1b5e20; --green-l:#4caf50; --lime:#7cb342;
@@ -463,7 +469,7 @@ body.viewonly .vobadge{display:block}
       <div class="sub-hint" style="margin:0 0 8px">Items auto-sort into these. Drag order with ▲▼, tap ✏️ to rename, ✕ to delete (its items move to “Other”).</div>
       <div id="catList"></div>
       <div class="addcat">
-        <input id="newCatIcon" maxlength="2" placeholder="🍎" style="flex:0 0 52px;text-align:center">
+        <input id="newCatIcon" maxlength="2" placeholder="auto" title="Leave blank to auto-pick an icon" style="flex:0 0 52px;text-align:center">
         <input id="newCatName" placeholder="New category name">
         <button class="chip" id="btnAddCat" style="flex:0 0 auto">＋ Add</button>
       </div>
@@ -608,12 +614,28 @@ const DEFAULT_CATS=[
 ];
 let CAT_ORDER=[], CAT_ICON={};
 const DEFAULT_CAT_ICON=Object.fromEntries(DEFAULT_CATS);
+// Guess a sensible icon from a category name so custom categories (any user) aren't a blank box.
+const CAT_ICON_RULES=[
+  [/veg|veggie|produce|greens|salad|vegetable/,"🥬"],[/fruit|berry/,"🍓"],
+  [/seafood|\bfish\b/,"🐟"],[/meat|protein|poultry|beef|pork|chicken|deli/,"🥩"],[/\begg/,"🥚"],
+  [/dairy|milk|cheese|yogurt|butter/,"🥛"],
+  [/bak(e|ing)|dessert|sweet|pastry|cake/,"🧁"],[/spice|season|herb/,"🧂"],
+  [/sauce|dressing|condiment/,"🥫"],[/\boil|vinegar/,"🫒"],[/can|soup|tin|broth|stock/,"🍲"],
+  [/pasta|noodle|grain|rice|cereal|oat/,"🍜"],[/bread|bakery|loaf/,"🍞"],
+  [/frozen|freezer|\bice\b/,"🧊"],[/dried|dry good/,"🍂"],
+  [/drink|beverage|juice|water|soda|coffee|tea|alcohol|wine|beer/,"🥤"],
+  [/snack|chip|candy|cookie|cracker/,"🍪"],[/nut|legume|\bbean/,"🥜"],
+  [/supplement|vitamin|protein powder|medicine|pharma|health/,"💊"],
+  [/clean|detergent|soap|household|paper|laundry/,"🧽"],[/pet|dog|cat/,"🐾"],[/baby|infant/,"🍼"],
+  [/toilet|bath|hygiene|personal/,"🧴"],[/spread|jam|honey/,"🍯"],
+];
+function guessCatIcon(name){ const n=(name||"").toLowerCase(); for(const [re,ic] of CAT_ICON_RULES){ if(re.test(n)) return ic; } return "🏷️"; }
 // Add a category if it isn't already there (auto-created from items). Keeps "Other" last.
 function ensureCat(name){
   if(!name) return false;
   if(!state.cats) state.cats=[];
   if(state.cats.some(c=>c.name===name)) return false;
-  const entry={name, icon:DEFAULT_CAT_ICON[name]||"🏷️"};
+  const entry={name, icon:DEFAULT_CAT_ICON[name]||guessCatIcon(name)};
   const oi=state.cats.findIndex(c=>c.name==="Other");
   if(oi>=0) state.cats.splice(oi,0,entry); else state.cats.push(entry);
   return true;
@@ -956,6 +978,16 @@ function pasteTubSVG(color){
     <rect x="7.4" y="10.6" width="9.2" height="6" rx="1" fill="#f3e7c8" opacity=".92"/>
     <circle cx="12" cy="13.6" r="2" fill="#c9a058"/></svg>`;
 }
+// Squat tub/jar container (for cheese sauce, dips, spreads)
+function jarSVG(color){
+  const s=shades(color);
+  return `<svg class="ficon" viewBox="0 0 24 24" aria-hidden="true">
+    <ellipse cx="12" cy="20.2" rx="6.6" ry="1.1" fill="rgba(0,0,0,.12)"/>
+    <rect x="6" y="8.6" width="12" height="11.4" rx="2.4" fill="${color}" stroke="${s.D}" stroke-width="0.6"/>
+    <rect x="6" y="8.6" width="12" height="3.2" rx="1.6" fill="${s.L}" opacity=".5"/>
+    <rect x="6.8" y="4.4" width="10.4" height="4.6" rx="1.4" fill="#dcd6c8" stroke="#b4ad9c" stroke-width="0.5"/>
+    <rect x="8.4" y="13.2" width="7.2" height="4.6" rx="0.9" fill="#fff" opacity=".85"/></svg>`;
+}
 function pepperJarSVG(){
   const p=(x,y,c,r)=>`<path transform="translate(${x} ${y}) rotate(${r})" d="M0 -2.4 Q1.6 -2.4 1.6 0 Q1.6 2.8 0 3.4 Q-1.6 2.8 -1.6 0.4 Q-1.6 -2 0 -2.4 Z" fill="${c}"/>`;
   return `<svg class="ficon" viewBox="0 0 24 24" aria-hidden="true">
@@ -1000,12 +1032,13 @@ function flakesSVG(color){
     ${fk(8.5,11,20)}${fk(12,10.4,-35)}${fk(15,11.6,55)}${fk(10,13,-15)}${fk(13.6,13.6,25)}${fk(7.8,14.4,70)}${fk(15.8,15,-40)}${fk(11,15.6,10)}${fk(13.8,16.4,-20)}${fk(9.6,16.8,45)}${fk(12.6,17,80)}</svg>`;
 }
 function starAniseSVG(){
-  const cx=12,cy=13,ro=6,ri=2.5; let pts="";
-  for(let i=0;i<8;i++){ const a=i*Math.PI/4-Math.PI/2; pts+=`${(cx+Math.cos(a)*ro).toFixed(2)},${(cy+Math.sin(a)*ro).toFixed(2)} ${(cx+Math.cos(a+Math.PI/8)*ri).toFixed(2)},${(cy+Math.sin(a+Math.PI/8)*ri).toFixed(2)} `; }
+  const cx=12,cy=13; let pods="";
+  for(let i=0;i<8;i++){ const a=i*45*Math.PI/180-Math.PI/2; const x=cx+Math.cos(a)*3.1, y=cy+Math.sin(a)*3.1;
+    pods+=`<g transform="translate(${x.toFixed(2)} ${y.toFixed(2)}) rotate(${i*45})"><ellipse rx="1.5" ry="3" fill="#8a5230" stroke="#5c331a" stroke-width="0.4"/><ellipse cy="-0.7" rx="0.65" ry="1.2" fill="#caa06a"/></g>`; }
   return `<svg class="ficon" viewBox="0 0 24 24" aria-hidden="true">
     <ellipse cx="12" cy="19.6" rx="6.5" ry="1" fill="rgba(0,0,0,.1)"/>
-    <polygon points="${pts}" fill="#7a4a24" stroke="#4d2c12" stroke-width="0.4"/>
-    <circle cx="12" cy="13" r="1.4" fill="#b5824a"/></svg>`;
+    ${pods}
+    <circle cx="12" cy="13" r="1.7" fill="#a9713f" stroke="#5c331a" stroke-width="0.3"/></svg>`;
 }
 function cinnamonSticksSVG(){
   const st=(x,r)=>`<g transform="translate(${x} 12) rotate(${r})"><rect x="-1.3" y="-6.5" width="2.6" height="13" rx="1.3" fill="#8a4a24" stroke="#5c2f16" stroke-width="0.4"/><rect x="-0.35" y="-6.5" width="0.9" height="13" fill="#6e3a1c"/></g>`;
@@ -1073,7 +1106,7 @@ function wholeSpiceSVG(name){
 function itemThumb(it){
   const n=(it.name||"").toLowerCase();
   if(it.photo) return `<img src="${it.photo}" alt="">`;
-  if(/cheese sauce|liquid cheese|nacho cheese/.test(n)) return bottleSVG("#f0a72e");
+  if(/cheese sauce|liquid cheese|nacho cheese|cheese dip|cheese spread/.test(n)) return jarSVG("#f0a72e");
   if(/mozzarella|white cheese|string cheese/.test(n)) return cheeseWedgeSVG("#f7f3e6");
   if(/mccafe|mc cafe/.test(n)) return coffeeCanSVG();
   if(/pickle/.test(n)) return pickleJarSVG(/sweet/.test(n));
@@ -1428,7 +1461,7 @@ function itemCardHTML(it,mode){
   if(mode==="grocery"){ sub.push(`<span class="pill cat">${catIco} ${it.category}</span>`); }
   if(it.qty) sub.push(`<span>${escapeHtml(it.qty)}</span>`);
   if(fs){ sub.push(`<span class="pill ${fs.level==='bad'?'bad':fs.level==='warn'?'warn':'ok'}">${fs.level==='ok'?'🟢':fs.level==='warn'?'⏳':'⚠️'} ${fs.label}</span>`); }
-  if(mode!=="grocery" && it.opened) sub.push(`<button class="pill openpill" data-unopen="${it.id}">📂 Opened ✕</button>`);
+  if(mode!=="grocery" && it.opened) sub.push(`<button class="pill openpill" data-newbatch="${it.id}">🔄 New batch</button>`);
   else if(mode!=="grocery" && !it.opened && shelfLife(it.name)) sub.push(`<button class="pill openpill" data-open="${it.id}">📂 Mark open</button>`);
   if(it.store && it.store!=="pantry" && mode!=="grocery") sub.push(`<span class="pill info">${it.store==='fridge'?'❄️ Fridge':'🧊 Freezer'}</span>`);
 
@@ -1582,6 +1615,8 @@ document.addEventListener("click",e=>{
   if(filt){ const f=filt.dataset.filter; activeFilter = (f==="all"||activeFilter===f) ? null : f; renderPantry(); return; }
   const openb=e.target.closest("[data-open]");
   if(openb){ markOpened(openb.dataset.open); return; }
+  const nb=e.target.closest("[data-newbatch]");
+  if(nb){ newBatch(nb.dataset.newbatch); return; }
   const unopenb=e.target.closest("[data-unopen]");
   if(unopenb){ markUnopened(unopenb.dataset.unopen); return; }
   const move=e.target.closest("[data-move]");
@@ -1611,6 +1646,16 @@ function markUnopened(id){
   it.opened=null;
   save(); renderAll();
   toast(`↩︎ “${it.name}” marked unopened`,"good");
+}
+// Renew the freshness timer for a fresh batch (confirmed, so an accidental tap can't reset it)
+function newBatch(id){
+  if(!requireEdit()) return;
+  const it=getItem(id); if(!it) return;
+  if(!confirm(`Start a NEW batch of “${it.name}”?\n\nThis resets the freshness timer to today and refills it to 100%. Use this when you've replaced it with a fresh one.`)) return;
+  it.opened=todayISO(); it.percent=100;
+  save(); renderAll();
+  const fs=freshStatus(it);
+  toast(fs?`🔄 New batch — best used within ${fs.daysLeft} day(s)`:`🔄 New batch started`,"good");
 }
 function moveItem(id){
   if(!requireEdit()) return;
@@ -2327,7 +2372,7 @@ $("#catList").addEventListener("click",e=>{
   }
 });
 $("#btnAddCat").addEventListener("click",()=>{
-  const name=$("#newCatName").value.trim(); const icon=$("#newCatIcon").value.trim()||"📦";
+  const name=$("#newCatName").value.trim(); const icon=$("#newCatIcon").value.trim()||guessCatIcon(name);
   if(!name){ toast("Enter a category name","warn"); return; }
   if(state.cats.some(c=>c.name.toLowerCase()===name.toLowerCase())){ toast("That category already exists","warn"); return; }
   // insert before "Other" so Other stays last
