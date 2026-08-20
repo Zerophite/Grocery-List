@@ -99,6 +99,11 @@ main{padding:12px 12px 90px;max-width:640px;margin:0 auto}
 .cathead .cico{font-size:16px}
 .cathead .cline{flex:1;height:2px;background:linear-gradient(90deg,var(--lime),transparent);border-radius:2px}
 .cathead .ccount{font-size:12px;color:var(--muted);font-weight:600}
+.cathead .catadd{width:26px;height:26px;border-radius:8px;background:var(--green);color:#fff;font-size:17px;font-weight:700;line-height:1;display:flex;align-items:center;justify-content:center;flex:none}
+.cathead .catadd:active{background:var(--green-d)}
+.cathead.isempty{opacity:.72}
+.cathead.isempty .cname{color:var(--muted)}
+body.viewonly .cathead .catadd{display:none}
 
 .card{
   background:var(--card);border-radius:14px;box-shadow:var(--shadow);
@@ -1582,9 +1587,21 @@ function renderPantry(){
     </div>`;
   }
 
+  // Empty categories the user created — shown (in category view, no search/filter) so they can add into them.
+  const emptyCatsHTML=()=>{
+    if(searchQ || activeFilter || state.settings.sort!=="category") return "";
+    let h="";
+    for(const cat of CAT_ORDER){
+      if(cat==="Other") continue;
+      if(pantryAll.some(i=>i.category===cat)) continue;   // only ones with no pantry items
+      h+=catHeadHTML(cat,0,{add:true,empty:true});
+    }
+    return h;
+  };
+
   if(!items.length){
-    const msg=activeFilter==="low"?"Nothing is running low 🎉":activeFilter==="expiring"?"Nothing is expiring soon 🎉":(searchQ?"No pantry items match your search.":"Your pantry is empty. Tap ＋ to add items.");
-    host.innerHTML=summary+emptyHTML(searchQ?"🔍":activeFilter?"✅":"🥫", msg);
+    const msg=activeFilter==="low"?"Nothing is running low 🎉":activeFilter==="expiring"?"Nothing is expiring soon 🎉":(searchQ?"No pantry items match your search.":"Your pantry is empty. Tap ＋ to add items — or tap ＋ on a category below.");
+    host.innerHTML=summary+emptyHTML(searchQ?"🔍":activeFilter?"✅":"🥫", msg)+emptyCatsHTML();
     return;
   }
 
@@ -1595,12 +1612,13 @@ function renderPantry(){
       const list=items.filter(i=>i.category===cat);
       if(!list.length) continue;
       list.sort((a,b)=>a.name.localeCompare(b.name));
-      html+=catHeadHTML(cat,list.length);
+      html+=catHeadHTML(cat,list.length,{add:true});
       html+=`<div class="card">`+list.map(i=>itemCardHTML(i,"pantry")).join("")+`</div>`;
     }
     // uncategorized cats not in order
     const others=items.filter(i=>!CAT_ORDER.includes(i.category));
-    if(others.length){ html+=catHeadHTML("Other",others.length); html+=`<div class="card">`+others.map(i=>itemCardHTML(i,"pantry")).join("")+`</div>`; }
+    if(others.length){ html+=catHeadHTML("Other",others.length,{add:true}); html+=`<div class="card">`+others.map(i=>itemCardHTML(i,"pantry")).join("")+`</div>`; }
+    html+=emptyCatsHTML();   // your empty categories, so you can add items into them
   }else{
     const sorted=[...items];
     if(state.settings.sort==="name") sorted.sort((a,b)=>a.name.localeCompare(b.name));
@@ -1648,8 +1666,11 @@ function renderNotes(){
     </div>`).join("");
 }
 
-function catHeadHTML(cat,count){
-  return `<div class="cathead"><span class="cico">${CAT_ICON[cat]||"📦"}</span><span class="cname">${escapeHtml(cat)}</span><span class="cline"></span><span class="ccount">${count}</span></div>`;
+function catHeadHTML(cat,count,opts){
+  opts=opts||{};
+  const addBtn = opts.add ? `<button class="catadd" data-addcat="${escapeHtml(cat)}" title="Add an item to ${escapeHtml(cat)}">＋</button>` : "";
+  const cnt = count ? `<span class="ccount">${count}</span>` : `<span class="ccount" style="opacity:.5">empty</span>`;
+  return `<div class="cathead${opts.empty?' isempty':''}"><span class="cico">${CAT_ICON[cat]||"📦"}</span><span class="cname">${escapeHtml(cat)}</span><span class="cline"></span>${cnt}${addBtn}</div>`;
 }
 function emptyHTML(ico,msg){ return `<div class="empty"><div class="e-ico">${ico}</div><p>${msg}</p></div>`; }
 function escapeHtml(s){ return (s||"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -1683,6 +1704,8 @@ $$(".tabbtn").forEach(b=>b.addEventListener("click",()=>switchTab(b.dataset.tab)
    ITEM MOVE / EDIT / CHECK  (event delegation)
    ============================================================ */
 document.addEventListener("click",e=>{
+  const addc=e.target.closest("[data-addcat]");
+  if(addc){ if(!requireEdit()) return; presetCat=addc.dataset.addcat; openItemSheet(null); return; }
   const filt=e.target.closest("[data-filter]");
   if(filt){ const f=filt.dataset.filter; activeFilter = (f==="all"||activeFilter===f) ? null : f; renderPantry(); return; }
   const openb=e.target.closest("[data-open]");
@@ -1791,6 +1814,7 @@ function filterNotes(){
 let editingId=null;
 let catTouched=false;   // did the user manually pick a category in this sheet?
 let lastCat="";         // remembers the last category used, as the default for the next add
+let presetCat=null;     // set when adding via a category's ＋ button
 const itemScrim=$("#itemScrim");
 // populate category select
 const fCat=$("#fCat");
@@ -1809,8 +1833,9 @@ function openItemSheet(id){
   const it=id?getItem(id):null;
   $("#itemSheetTitle").textContent=it?"Edit Item":"Add Item";
   $("#fName").value=it?it.name:"";
-  catTouched=!!it;   // editing an existing item = its category is already "chosen"
-  setCatSelect(it?it.category:(lastCat||"Other"));
+  catTouched=!!it || !!presetCat;   // editing, or added via a category's ＋, = category already chosen
+  setCatSelect(it?it.category:(presetCat||lastCat||"Other"));
+  presetCat=null;
   $("#chipOpenToday").textContent = (it&&it.opened) ? "✕ Mark unopened" : "📂 Opened today";
   $("#fPct").value=it&&it.percent!=null?it.percent:100;
   $("#fQty").value=it?it.qty:"";
