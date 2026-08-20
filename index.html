@@ -2024,7 +2024,7 @@ fileInput.addEventListener("change",()=>{
 });
 
 /* ----- Camera view (live) for barcode + date ----- */
-let camStream=null, camMode="barcode", barcodeDetector=null, scanLoop=null, dateScanTimer=null, dateScanWorker=null;
+let camStream=null, camMode="barcode", barcodeDetector=null, scanLoop=null, dateScanTimer=null, dateScanWorker=null, bcTimer=null;
 const camView=$("#camView"), camVideo=$("#camVideo");
 
 async function openCamera(mode){
@@ -2032,12 +2032,19 @@ async function openCamera(mode){
   $("#camModeLabel").textContent = mode==="barcode"?"BARCODE":mode==="date"?"EXPIRY DATE":"PHOTO";
   $("#camHint").textContent = mode==="barcode"?"Line up the product barcode":
     mode==="date"?"Scanning for date…":"Tap to capture";
-  $("#camHint").classList.toggle("scanning",mode==="date");
+  $("#camHint").classList.toggle("scanning",mode!=="photo");
   $("#camScanBox").style.display = mode==="photo"?"none":"block";
-  $("#camScanBox").classList.toggle("scanning",mode==="date");
+  $("#camScanBox").classList.toggle("scanning",mode!=="photo");
   try{
-    camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"},audio:false});
-    camVideo.srcObject=camStream; camView.style.display="flex";
+    // Ask for a sharp rear-camera feed; fall back to a basic request if the device refuses it
+    let want={video:{facingMode:{ideal:"environment"},width:{ideal:1920},height:{ideal:1080}},audio:false};
+    try{ camStream=await navigator.mediaDevices.getUserMedia(want); }
+    catch(e){ camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"},audio:false}); }
+    // Nudge continuous autofocus where the camera supports it (much sharper barcodes & dates)
+    try{ const tr=camStream.getVideoTracks()[0]; if(tr&&tr.applyConstraints){ await tr.applyConstraints({advanced:[{focusMode:"continuous"}]}); } }catch(e){}
+    camVideo.srcObject=camStream;
+    try{ await camVideo.play(); }catch(e){}
+    camView.style.display="flex";
     if(mode==="barcode") startBarcodeScan();
     if(mode==="date") startDateScan();
   }catch(err){
@@ -2048,6 +2055,7 @@ async function openCamera(mode){
 function closeCamera(){
   if(scanLoop){ cancelAnimationFrame(scanLoop); scanLoop=null; }
   if(dateScanTimer){ clearInterval(dateScanTimer); dateScanTimer=null; }
+  if(bcTimer){ clearInterval(bcTimer); bcTimer=null; }
   if(zxingReader){ try{ zxingReader.reset(); }catch(e){} }
   if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
   camView.style.display="none";
@@ -2058,17 +2066,16 @@ function closeCamera(){
 async function startDateScan(){
   try{ await loadTesseract(); }catch(e){ $("#camHint").textContent="OCR unavailable — tap shutter to try manually"; return; }
   if(!dateScanWorker){ try{ dateScanWorker=await Tesseract.createWorker("eng"); await dateScanWorker.setParameters({tessedit_char_whitelist:"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz /.:-",tessedit_pageseg_mode:"6"}); }catch(e){} }
-  let scanning=false;
+  let scanning=false, softToggle=false;
   dateScanTimer=setInterval(async()=>{
     if(!camStream||scanning) return;
     scanning=true;
     try{
-      const dataUrl=captureDateRegion();
       const worker=dateScanWorker;
       if(!worker){ scanning=false; return; }
+      const dataUrl=captureDateRegion(softToggle); softToggle=!softToggle;   // alternate crisp / gentle passes
       const r=await worker.recognize(dataUrl);
-      const text=r.data.text||"";
-      const iso=parseDate(text);
+      const iso=parseDate(r.data.text||"");
       if(iso){
         clearInterval(dateScanTimer); dateScanTimer=null;
         closeCamera();
@@ -2076,10 +2083,10 @@ async function startDateScan(){
         toast("📅 Found expiry: "+iso,"good");
         return;
       }
-      if(camStream) $("#camHint").textContent="Scanning… hold steady over the date";
+      if(camStream) $("#camHint").textContent="Scanning… fill the box with just the date";
     }catch(e){}
     scanning=false;
-  },1800);
+  },1300);
 }
 $("#camClose").addEventListener("click",closeCamera);
 $("#camCancel2").addEventListener("click",closeCamera);
@@ -2089,12 +2096,12 @@ $("#chipFindImg").addEventListener("click",findImageByName);
 $("#chipScanDate").addEventListener("click",()=>openCamera("date"));
 
 // Barcode scanning: native BarcodeDetector where available (Android Chrome),
-// otherwise fall back to ZXing (works on iOS Safari + everywhere else).
+// otherwise ZXing (works on iOS Safari + everywhere else) by decoding grabbed frames.
 async function startBarcodeScan(){
-  // 1) Native BarcodeDetector (fast, Android Chrome / desktop Chrome)
+  // 1) Native BarcodeDetector (fast: Android Chrome / desktop Chrome)
   if("BarcodeDetector" in window){
     try{
-      barcodeDetector=barcodeDetector||new BarcodeDetector({formats:["ean_13","ean_8","upc_a","upc_e","code_128"]});
+      barcodeDetector=barcodeDetector||new BarcodeDetector({formats:["ean_13","ean_8","upc_a","upc_e","code_128","code_39","itf","codabar"]});
       const tick=async()=>{
         if(!camStream) return;
         try{
@@ -2107,23 +2114,30 @@ async function startBarcodeScan(){
       return;
     }catch(e){ /* fall through to ZXing */ }
   }
-  // 2) ZXing fallback (iOS Safari, older browsers)
+  // 2) ZXing fallback: grab a frame every ~450ms and try to decode it
   $("#camHint").textContent="Starting scanner…";
   try{ await loadZXing(); }
-  catch(e){ $("#camHint").textContent="Scanner unavailable — tap shutter to take a photo instead"; return; }
+  catch(e){ $("#camHint").textContent="Scanner didn't load — check connection, or type the name"; toast("Couldn't load the barcode scanner (offline?)","warn"); return; }
   if(!camStream) return;
-  try{
-    zxingReader=zxingReader||new ZXing.BrowserMultiFormatReader();
-    $("#camHint").textContent="Line up the product barcode";
-    zxingReader.decodeFromVideoElement(camVideo,(result,err)=>{
-      if(result && result.text){
-        const code=result.text;
-        try{ zxingReader.reset(); }catch(e){}
-        closeCamera();
-        lookupBarcode(code);
+  try{ zxingReader=zxingReader||new ZXing.BrowserMultiFormatReader(); }
+  catch(e){ $("#camHint").textContent="Scanner error — type the name instead"; return; }
+  $("#camHint").textContent="Line up the barcode — hold steady";
+  let busy=false;
+  bcTimer=setInterval(async()=>{
+    if(!camStream||busy) return;
+    busy=true;
+    try{
+      const v=camVideo, vw=v.videoWidth, vh=v.videoHeight;
+      if(vw&&vh){
+        const c=document.createElement("canvas"); c.width=vw; c.height=vh;
+        c.getContext("2d").drawImage(v,0,0,vw,vh);
+        const res=await zxingReader.decodeFromImageUrl(c.toDataURL("image/png"));
+        const code=res && (res.getText?res.getText():res.text);
+        if(code){ closeCamera(); lookupBarcode(code); return; }
       }
-    });
-  }catch(e){ $("#camHint").textContent="Scanner error — tap shutter to take a photo instead"; }
+    }catch(e){ /* no barcode in this frame — keep trying */ }
+    busy=false;
+  },450);
 }
 // Lazy-load ZXing barcode library from CDN (only when first needed)
 let zxingLoaded=false, zxingReader=null;
@@ -2214,31 +2228,34 @@ function guessCatFromOFF(tags){
   return null;
 }
 
-// Shutter: photo capture, and for date -> OCR
+// Shutter: photo capture, and for date -> OCR (grab a crisp + a gentle crop before closing)
 $("#camShutter").addEventListener("click",async()=>{
   if(camMode==="date"){
-    const proc=captureDateRegion();   // crop to the box + preprocess for OCR
+    const shots=[captureDateRegion(false),captureDateRegion(true)];
     closeCamera();
-    await ocrDate(proc);
+    await ocrDate(shots);
   }else{
     pendingPhoto=toThumb(camVideo,420,0.62); closeCamera(); showPhoto(pendingPhoto); toast("Photo captured","good");
   }
 });
 
-// Crop to the on-screen scan box, upscale 2.2×, grayscale + contrast + soft threshold → much cleaner OCR
-function captureDateRegion(){
+// Crop to the on-screen scan box and upscale 3×. Two modes: crisp (hard black/white, best for
+// clean labels) and gentle (grayscale + mild contrast, best for slightly blurry stamps).
+function captureDateRegion(soft){
   const v=camVideo, vw=v.videoWidth||1280, vh=v.videoHeight||720;
   const bx=Math.round(vw*0.06), by=Math.round(vh*0.30), bw=Math.round(vw*0.88), bh=Math.round(vh*0.34);
-  const scale=2.2;
+  const scale=3;
   const c=document.createElement("canvas"); c.width=Math.round(bw*scale); c.height=Math.round(bh*scale);
   const ctx=c.getContext("2d");
+  ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality="high";
   ctx.drawImage(v, bx,by,bw,bh, 0,0,c.width,c.height);
   try{
-    const img=ctx.getImageData(0,0,c.width,c.height), D=img.data, contrast=1.5;
+    const img=ctx.getImageData(0,0,c.width,c.height), D=img.data, contrast=soft?1.25:1.6;
     for(let i=0;i<D.length;i+=4){
       let g=0.299*D[i]+0.587*D[i+1]+0.114*D[i+2];
-      g=(g-128)*contrast+128;                 // boost contrast
-      g=g<100?0:(g>165?255:g);                // soft threshold to black/white
+      g=(g-128)*contrast+128;                       // boost contrast
+      if(!soft){ g=g<95?0:(g>170?255:g); }          // crisp mode: snap to black/white
+      g=g<0?0:(g>255?255:g);
       D[i]=D[i+1]=D[i+2]=g;
     }
     ctx.putImageData(img,0,0);
@@ -2258,26 +2275,28 @@ function loadTesseract(){
     document.head.appendChild(s);
   });
 }
-async function ocrDate(dataUrl){
+async function ocrDate(imgs){
+  const list=Array.isArray(imgs)?imgs:[imgs];
   toast("🔎 Reading date…","good");
   try{
     await loadTesseract();
-    let text="";
+    let worker=null;
     try{
-      // worker lets us restrict characters to those found in dates → big accuracy win
-      const worker=await Tesseract.createWorker("eng");
-      await worker.setParameters({
-        tessedit_char_whitelist:"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz /.:-",
-        tessedit_pageseg_mode:"6"
-      });
-      const r=await worker.recognize(dataUrl); text=r.data.text||"";
-      await worker.terminate();
-    }catch(e){
-      const r=await Tesseract.recognize(dataUrl,"eng"); text=r.data.text||"";
+      worker=await Tesseract.createWorker("eng");
+      await worker.setParameters({tessedit_char_whitelist:"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz /.:-",tessedit_pageseg_mode:"6"});
+    }catch(e){}
+    let iso=null;
+    for(const dataUrl of list){
+      let text="";
+      try{
+        if(worker){ const r=await worker.recognize(dataUrl); text=r.data.text||""; }
+        else { const r=await Tesseract.recognize(dataUrl,"eng"); text=r.data.text||""; }
+      }catch(e){}
+      iso=parseDate(text); if(iso) break;
     }
-    const iso=parseDate(text);
+    if(worker){ try{ await worker.terminate(); }catch(e){} }
     if(iso){ $("#fExp").value=iso; updateFreshInfo(); toast("📅 Found expiry: "+iso,"good"); }
-    else { toast("Couldn't read the date clearly — frame just the date & try again, or type it","warn"); }
+    else { toast("Couldn't read it — hold steady & fill the box with just the date, or type it","warn"); }
   }catch(e){ toast("OCR unavailable (offline?) — type the date","warn"); }
 }
 // Robust parser: handles 19 AUG 2026 · AUG 2026 · 2026-08-19 · 19/08/2026 · 08/2026 · full month names · BB/EXP prefixes
@@ -2327,11 +2346,24 @@ function voiceStart(){
 function spinUp(){
   if(!wantListen) return;
   try{ recog=new SR(); }catch(e){ return; }           // fresh recognizer each cycle = far more stable
-  recog.lang="en-US"; recog.continuous=true; recog.interimResults=false; recog.maxAlternatives=3;
+  recog.lang="en-US"; recog.continuous=true; recog.interimResults=true; recog.maxAlternatives=6;
   recog.onstart=()=>{ recogRunning=true; };
   recog.onresult=(ev)=>{
     for(let i=ev.resultIndex;i<ev.results.length;i++){
-      if(ev.results[i].isFinal){ const t=ev.results[i][0].transcript.trim(); if(t) handleVoice(t.toLowerCase(), t); }
+      const res=ev.results[i];
+      if(res.isFinal){
+        // Try EVERY alternative the engine offers, not just its top guess — pick the first
+        // one that forms a valid command. Huge win when the best guess is slightly wrong.
+        let ok=false, first="";
+        for(let a=0;a<res.length;a++){
+          const t=(res[a].transcript||"").trim(); if(!first) first=t;
+          if(t && handleVoice(t.toLowerCase(), t)){ ok=true; break; }
+        }
+        if(!ok && first){ vlabel('🤔 Heard "'+first+'" — try again'); toast('Didn\u2019t catch that — heard "'+first+'"',"warn"); }
+      }else{
+        // interim: echo what it's hearing so the user knows it's working
+        const t=(res[0].transcript||"").trim(); if(t) showPill('🎧 '+t);
+      }
     }
   };
   recog.onerror=(e)=>{
@@ -2363,13 +2395,14 @@ function findItemByName(q){
 
 function handleVoice(t, original){
   // normalize number words
-  const numWords={one:1,two:2,three:3,four:4,five:5,ten:10,twenty:20,quarter:25,half:50,fifty:50,twentyfive:25,hundred:100,full:100,empty:0};
+  const numWords={one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,twenty:20,thirty:30,forty:40,fifty:50,sixty:60,seventy:70,eighty:80,ninety:90,quarter:25,half:50,fifty:50,twentyfive:25,hundred:100,full:100,empty:0};
+  const numWord=w=>numWords[w]!=null?numWords[w]:(/^\d+$/.test(w)?parseInt(w,10):null);
+  const cleanName=s=>(s||"").replace(/(left|remaining|remain|in stock|in the pantry|in the fridge|in the freezer|in pantry|in fridge|in freezer).*$/,"").replace(/^(of|the|my|some|a|an)s+/,"").replace(/s+(is|are|at|has|have|got|to)$/,"").replace(/s+/g," ").trim();
   let m;
 
   // "check X" / "do i have X" / "is X available"
-  m=t.match(/(?:check|do i have|is there|is|got)\s+(.*?)(?:\s+available|\s+in (?:the )?pantry)?$/);
   if(t.startsWith("check")||t.startsWith("do i have")||t.startsWith("is there")){
-    const q=(t.replace(/^(check|do i have|is there)\s+/,"").replace(/\s+(available|in (the )?pantry)$/,"")).trim();
+    const q=cleanName(t.replace(/^(check|do i have|is there)\s+/,"").replace(/\s+(available|in (the )?pantry)$/,""));
     const it=findItemByName(q);
     if(it){
       const where=it.location==="pantry"?"in your pantry":"on your grocery list";
@@ -2379,41 +2412,72 @@ function handleVoice(t, original){
       toast(`✅ ${it.name} is ${where}${amt}`,"good");
     }else{
       speak(`No, I couldn't find ${q} in your pantry.`);
-      vlabel(`❌ “${q}” not found`);
-      toast(`❌ “${q}” is not in your pantry`,"warn");
+      vlabel(`❌ "${q}" not found`);
+      toast(`❌ "${q}" is not in your pantry`,"warn");
     }
-    return;
+    return true;
   }
 
-  // "X percent left on Y"  /  "Y is at X percent"
-  m=t.match(/(\d{1,3}|quarter|half|full|empty)\s*(?:percent|%)?\s*(?:left)?\s*(?:on|of|for)\s+(.+)/);
-  if(!m) m=t.match(/(.+?)\s+(?:is|are)\s+(?:at\s+)?(\d{1,3}|quarter|half|full|empty)\s*(?:percent|%)/);
-  if(m){
-    let pct, name;
-    if(/^\d/.test(m[1])||numWords[m[1]]!=null){ pct=numWords[m[1]]!=null?numWords[m[1]]:parseInt(m[1],10); name=m[2]; }
-    else { name=m[1]; pct=numWords[m[2]]!=null?numWords[m[2]]:parseInt(m[2],10); }
-    pct=Math.max(0,Math.min(100,pct));
-    const it=findItemByName(name);
-    if(it){
-      it.percent=pct;
-      // Keep it in the pantry so the new percentage is visible; only a "no more X" fully moves it.
-      if(it.location==="grocery" && pct>25){ it.location="pantry"; it.checked=false; }
-      save(); renderAll();
-      const lowNote=pct<=25?" — running low":"";
-      speak(`Set ${it.name} to ${pct} percent${lowNote}.`);
-      vlabel(`✅ ${it.name} → ${pct}%${lowNote}`);
-      toast(`✅ ${it.name} set to ${pct}%${lowNote}`,"good");
-    }else{
-      speak(`I couldn't find ${name}.`);
-      toast(`❌ “${name.trim()}” not found`,"warn");
+  // ---- Percentage: "25% eggs", "eggs 25%", "half left on rice", "25 percent left on eggs" ----
+  {
+    let pct=null, name=null;
+    // number/word + (%|percent), item after (connector words optional): "25% eggs", "25 percent on eggs"
+    if(m=t.match(/\b(\d{1,3}|quarter|half|full|empty|one|two|three|four|five|ten|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred)\s*(?:percent|%)\s*(?:left)?\s*(?:on|of|for|in)?\s+(.+)/)){
+      pct=numWord(m[1]); name=m[2];
     }
-    return;
+    // item + number/word + (%|percent): "eggs 25%", "eggs are at 25 percent"
+    else if(m=t.match(/^(.+?)s+(?:is|are|at|has|have|got|to)?s*(d{1,3}|quarter|half|full|empty)s*(?:percent|%)/)){
+      name=m[1]; pct=numWord(m[2]);
+    }
+    // word amount + optional "left on/of" + item, no % sign: "half left on rice", "quarter of the milk"
+    else if(m=t.match(/\b(quarter|half|full|empty)\s*(?:left)?\s*(?:on|of|for|in)?\s+(.+)/)){
+      pct=numWord(m[1]); name=m[2];
+    }
+    if(pct!=null && name){
+      pct=Math.max(0,Math.min(100,pct));
+      const it=findItemByName(cleanName(name));
+      if(it){
+        it.percent=pct;
+        if(it.location==="grocery" && pct>25){ it.location="pantry"; it.checked=false; }
+        save(); renderAll();
+        const lowNote=pct<=25?" — running low":"";
+        speak(`Set ${it.name} to ${pct} percent${lowNote}.`);
+        vlabel(`✅ ${it.name} → ${pct}%${lowNote}`);
+        toast(`✅ ${it.name} set to ${pct}%${lowNote}`,"good");
+      }else{
+        speak(`I couldn't find ${cleanName(name)}.`);
+        toast(`❌ "${cleanName(name)}" not found`,"warn");
+      }
+      return true;
+    }
+  }
+
+  // ---- Count: "3 eggs left", "eggs 3 left", "I have 3 eggs left" -> store as quantity note ----
+  {
+    let name=null, count=null;
+    if(m=t.match(/(?:i have|got|there(?:'s| is| are)?|have)?\s*(\d{1,3}|one|two|three|four|five|six|seven|eight|nine|ten)\s+([a-z][a-z '\-]*?)\s+(?:left|remaining|remain|in stock)\b/)){
+      count=numWord(m[1]); name=m[2];
+    } else if(m=t.match(/^([a-z][a-z '\-]*?)\s+(\d{1,3}|one|two|three|four|five|six|seven|eight|nine|ten)\s+(?:left|remaining|remain)\b/)){
+      name=m[1]; count=numWord(m[2]);
+    }
+    if(count!=null && name){
+      const it=findItemByName(cleanName(name));
+      if(it){
+        it.qty=count+" left";
+        if(it.location==="grocery"){ it.location="pantry"; it.checked=false; }
+        save(); renderAll();
+        speak(`${it.name}: ${count} left.`);
+        vlabel(`✅ ${it.name} → ${count} left`);
+        toast(`✅ ${it.name} → ${count} left`,"good");
+        return true;
+      }
+      // if the item isn't found, fall through so "add"/other handlers can try
+    }
   }
 
   // "no more X" / "out of X" / "ran out of X" -> move to grocery
-  m=t.match(/(?:no more|out of|ran out of|need|buy|add to (?:grocery|shopping)(?: list)?)\s+(.+)/);
   if(/^(no more|out of|ran out of)/.test(t)){
-    const name=t.replace(/^(no more|out of|ran out of)\s+/,"").trim();
+    const name=cleanName(t.replace(/^(no more|out of|ran out of)\s+/,""));
     const it=findItemByName(name);
     if(it){
       it.location="grocery"; it.checked=false; if(it.percent!=null)it.percent=0;
@@ -2422,36 +2486,33 @@ function handleVoice(t, original){
       vlabel(`🛒 ${it.name} → grocery list`);
       toast(`🛒 ${it.name} added to grocery list`,"good");
     }else{
-      // add as new grocery item
       const cat=autoCategory(name);
       state.items.push({id:uid(),name:titleCase(name),category:cat,location:"grocery",percent:null,qty:"",checked:false,photo:null,exp:null,opened:null,store:"pantry",note:""});
       save(); renderAll();
       speak(`Added ${name} to your grocery list.`);
-      toast(`🛒 “${titleCase(name)}” added to grocery (${cat})`,"good");
+      toast(`🛒 "${titleCase(name)}" added to grocery (${cat})`,"good");
     }
-    return;
+    return true;
   }
 
   // "add X" / "buy X" / "need X" -> add item (grocery if 'buy/need', pantry if 'add')
-  m=t.match(/^(add|buy|need|i need|get)\s+(.+)/);
-  if(m){
-    const name=m[2].trim();
+  if(m=t.match(/^(add|buy|need|i need|get)\s+(.+)/)){
+    const name=cleanName(m[2]);
     const toGro=/^(buy|need|i need|get)/.test(t);
     const existing=findItemByName(name);
     if(existing){
       speak(`${existing.name} is already in your ${existing.location}.`);
-      toast(`⚠️ “${existing.name}” already in ${existing.location}`,"warn"); return;
+      toast(`⚠️ "${existing.name}" already in ${existing.location}`,"warn"); return true;
     }
     const cat=autoCategory(name);
     state.items.push({id:uid(),name:titleCase(name),category:cat,location:toGro?"grocery":"pantry",percent:toGro?null:100,qty:"",checked:false,photo:null,exp:null,opened:null,store:"pantry",note:""});
     save(); renderAll();
     speak(`Added ${name} to your ${toGro?"grocery list":"pantry"}.`);
-    toast(`✓ “${titleCase(name)}” added to ${toGro?"grocery":"pantry"} (${cat})`,"good");
-    return;
+    toast(`✓ "${titleCase(name)}" added to ${toGro?"grocery":"pantry"} (${cat})`,"good");
+    return true;
   }
 
-  vlabel(`🤔 Didn't catch that — try again`);
-  toast("Didn't recognize that command","warn");
+  return false;   // not understood — caller will show the "try again" hint
 }
 function titleCase(s){ return s.replace(/\b\w/g,c=>c.toUpperCase()); }
 function speak(text){ try{ const u=new SpeechSynthesisUtterance(text); u.rate=1; speechSynthesis.speak(u); }catch(e){} }
