@@ -244,7 +244,11 @@ body.viewonly .cathead .catadd{display:none}
 #camView .cx{position:absolute;top:calc(16px + env(safe-area-inset-top));left:16px;z-index:2;color:#fff;font-size:26px;width:44px;height:44px;background:rgba(0,0,0,.4);border-radius:50%}
 #camView .chint{position:absolute;top:calc(20px + env(safe-area-inset-top));left:0;right:0;text-align:center;color:#fff;font-size:13px;padding:0 60px;text-shadow:0 1px 3px #000}
 #camView .cmode{color:#fff;font-size:13px;font-weight:700;opacity:.85;text-align:center;min-width:70px}
-#camScanBox{position:absolute;top:35%;left:12%;right:12%;height:22%;border:2px solid rgba(255,255,255,.7);border-radius:12px;box-shadow:0 0 0 100vmax rgba(0,0,0,.35)}
+#camScanBox{position:absolute;top:35%;left:12%;right:12%;height:22%;border:2px solid rgba(255,255,255,.7);border-radius:12px;box-shadow:0 0 0 100vmax rgba(0,0,0,.35);overflow:hidden}
+#camScanBox.scanning::after{content:"";position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,#4caf50,transparent);animation:scanline 1.8s ease-in-out infinite}
+@keyframes scanline{0%{top:0}50%{top:100%}100%{top:0}}
+#camView .chint.scanning{animation:hintpulse 1.5s ease-in-out infinite}
+@keyframes hintpulse{0%,100%{opacity:1}50%{opacity:.5}}
 
 /* toast */
 #toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:80;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;width:92%;max-width:420px}
@@ -2020,29 +2024,62 @@ fileInput.addEventListener("change",()=>{
 });
 
 /* ----- Camera view (live) for barcode + date ----- */
-let camStream=null, camMode="barcode", barcodeDetector=null, scanLoop=null;
+let camStream=null, camMode="barcode", barcodeDetector=null, scanLoop=null, dateScanTimer=null, dateScanWorker=null;
 const camView=$("#camView"), camVideo=$("#camVideo");
 
 async function openCamera(mode){
   camMode=mode;
   $("#camModeLabel").textContent = mode==="barcode"?"BARCODE":mode==="date"?"EXPIRY DATE":"PHOTO";
   $("#camHint").textContent = mode==="barcode"?"Line up the product barcode":
-    mode==="date"?"Frame the printed expiry date, then tap":"Tap to capture";
+    mode==="date"?"Scanning for date…":"Tap to capture";
+  $("#camHint").classList.toggle("scanning",mode==="date");
   $("#camScanBox").style.display = mode==="photo"?"none":"block";
+  $("#camScanBox").classList.toggle("scanning",mode==="date");
   try{
     camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"},audio:false});
     camVideo.srcObject=camStream; camView.style.display="flex";
     if(mode==="barcode") startBarcodeScan();
+    if(mode==="date") startDateScan();
   }catch(err){
-    toast("Camera unavailable — use “Add photo” instead","warn");
-    // fallback to file input
+    toast("Camera unavailable — use Add photo instead","warn");
     photoMode=mode; fileInput.click();
   }
 }
 function closeCamera(){
   if(scanLoop){ cancelAnimationFrame(scanLoop); scanLoop=null; }
+  if(dateScanTimer){ clearInterval(dateScanTimer); dateScanTimer=null; }
+  if(zxingReader){ try{ zxingReader.reset(); }catch(e){} }
   if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
   camView.style.display="none";
+  $("#camScanBox").classList.remove("scanning");
+  $("#camHint").classList.remove("scanning");
+}
+
+async function startDateScan(){
+  try{ await loadTesseract(); }catch(e){ $("#camHint").textContent="OCR unavailable — tap shutter to try manually"; return; }
+  if(!dateScanWorker){ try{ dateScanWorker=await Tesseract.createWorker("eng"); await dateScanWorker.setParameters({tessedit_char_whitelist:"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz /.:-",tessedit_pageseg_mode:"6"}); }catch(e){} }
+  let scanning=false;
+  dateScanTimer=setInterval(async()=>{
+    if(!camStream||scanning) return;
+    scanning=true;
+    try{
+      const dataUrl=captureDateRegion();
+      const worker=dateScanWorker;
+      if(!worker){ scanning=false; return; }
+      const r=await worker.recognize(dataUrl);
+      const text=r.data.text||"";
+      const iso=parseDate(text);
+      if(iso){
+        clearInterval(dateScanTimer); dateScanTimer=null;
+        closeCamera();
+        $("#fExp").value=iso; updateFreshInfo();
+        toast("📅 Found expiry: "+iso,"good");
+        return;
+      }
+      if(camStream) $("#camHint").textContent="Scanning… hold steady over the date";
+    }catch(e){}
+    scanning=false;
+  },1800);
 }
 $("#camClose").addEventListener("click",closeCamera);
 $("#camCancel2").addEventListener("click",closeCamera);
@@ -2051,51 +2088,100 @@ $("#chipScanItem").addEventListener("click",()=>openCamera("barcode"));
 $("#chipFindImg").addEventListener("click",findImageByName);
 $("#chipScanDate").addEventListener("click",()=>openCamera("date"));
 
-// Barcode scanning via native BarcodeDetector
+// Barcode scanning: native BarcodeDetector where available (Android Chrome),
+// otherwise fall back to ZXing (works on iOS Safari + everywhere else).
 async function startBarcodeScan(){
-  if(!("BarcodeDetector" in window)){
-    $("#camHint").textContent="Barcode scanner not supported here — tap shutter to take a photo instead";
-    return;
-  }
-  try{
-    barcodeDetector=barcodeDetector||new BarcodeDetector({formats:["ean_13","ean_8","upc_a","upc_e","code_128"]});
-  }catch(e){ return; }
-  const tick=async()=>{
-    if(!camStream) return;
+  // 1) Native BarcodeDetector (fast, Android Chrome / desktop Chrome)
+  if("BarcodeDetector" in window){
     try{
-      const codes=await barcodeDetector.detect(camVideo);
-      if(codes && codes.length){
-        const code=codes[0].rawValue;
+      barcodeDetector=barcodeDetector||new BarcodeDetector({formats:["ean_13","ean_8","upc_a","upc_e","code_128"]});
+      const tick=async()=>{
+        if(!camStream) return;
+        try{
+          const codes=await barcodeDetector.detect(camVideo);
+          if(codes && codes.length){ const code=codes[0].rawValue; closeCamera(); lookupBarcode(code); return; }
+        }catch(e){}
+        scanLoop=requestAnimationFrame(tick);
+      };
+      scanLoop=requestAnimationFrame(tick);
+      return;
+    }catch(e){ /* fall through to ZXing */ }
+  }
+  // 2) ZXing fallback (iOS Safari, older browsers)
+  $("#camHint").textContent="Starting scanner…";
+  try{ await loadZXing(); }
+  catch(e){ $("#camHint").textContent="Scanner unavailable — tap shutter to take a photo instead"; return; }
+  if(!camStream) return;
+  try{
+    zxingReader=zxingReader||new ZXing.BrowserMultiFormatReader();
+    $("#camHint").textContent="Line up the product barcode";
+    zxingReader.decodeFromVideoElement(camVideo,(result,err)=>{
+      if(result && result.text){
+        const code=result.text;
+        try{ zxingReader.reset(); }catch(e){}
         closeCamera();
         lookupBarcode(code);
-        return;
       }
-    }catch(e){}
-    scanLoop=requestAnimationFrame(tick);
-  };
-  scanLoop=requestAnimationFrame(tick);
+    });
+  }catch(e){ $("#camHint").textContent="Scanner error — tap shutter to take a photo instead"; }
+}
+// Lazy-load ZXing barcode library from CDN (only when first needed)
+let zxingLoaded=false, zxingReader=null;
+function loadZXing(){
+  return new Promise((res,rej)=>{
+    if(zxingLoaded && window.ZXing) return res();
+    const s=document.createElement("script");
+    s.src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js";
+    s.onload=()=>{ zxingLoaded=true; res(); };
+    s.onerror=()=>rej();
+    document.head.appendChild(s);
+  });
 }
 
-// Open Food Facts lookup (free, no key)
+// Barcode -> product lookup. Open Food Facts first (free, no key, strong international
+// coverage); USDA FoodData Central "Branded Foods" as fallback (the US database Cronometer
+// draws from — much better for US store brands like Great Value).
 async function lookupBarcode(code){
   toast("🔎 Looking up "+code+"…","good");
+  // 1) Open Food Facts
   try{
     const r=await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=product_name,brands,categories_tags,image_front_small_url`);
     const j=await r.json();
-    if(j.status===1 && j.product){
+    if(j.status===1 && j.product && (j.product.product_name||j.product.brands)){
       const p=j.product;
       const nm=[p.brands?p.brands.split(",")[0]:"",p.product_name].filter(Boolean).join(" ").trim() || ("Product "+code);
-      $("#fName").value=nm;
-      const cat=guessCatFromOFF(p.categories_tags)||autoCategory(nm);
-      $("#fCat").value=CAT_ORDER.includes(cat)?cat:"Other";
-      $("#autoCatTag").textContent=" → auto: "+$("#fCat").value;
-      if(p.image_front_small_url){ pendingPhoto=p.image_front_small_url; showPhoto(pendingPhoto); }
-      updateFreshInfo();
-      toast("✓ Detected: "+nm,"good");
-    }else{
-      toast("Barcode "+code+" not found — type the name","warn");
+      applyBarcodeResult(nm, guessCatFromOFF(p.categories_tags), p.image_front_small_url);
+      return;
     }
-  }catch(e){ toast("Lookup failed (offline?) — enter manually","warn"); }
+  }catch(e){}
+  // 2) USDA FoodData Central (Branded Foods). DEMO_KEY is a free public key (rate-limited to a
+  // few dozen lookups/day per network) — get your own free key at fdc.nal.usda.gov/api-key-signup
+  // and paste it below for higher limits.
+  try{
+    const key="DEMO_KEY";
+    const r=await fetch(`https://api.nal.usda.gov/fdc/v1/foods/search?api_key=${key}&query=${encodeURIComponent(code)}&dataType=Branded&pageSize=1`);
+    const j=await r.json();
+    const f=j && j.foods && j.foods[0];
+    if(f && (f.description||f.brandName||f.brandOwner)){
+      const brand=(f.brandName||f.brandOwner||"").trim();
+      const desc=(f.description||"").trim();
+      const raw=[brand, desc].filter(Boolean).join(" ").replace(/\s+/g," ").trim();
+      const nm=(raw?titleCase(raw.toLowerCase()):("Product "+code));
+      applyBarcodeResult(nm, null, null);
+      return;
+    }
+  }catch(e){}
+  toast("Barcode "+code+" not found — type the name","warn");
+}
+// Fill the add-item form from a barcode result
+function applyBarcodeResult(nm, catGuess, imgUrl){
+  $("#fName").value=nm;
+  const cat=catGuess||autoCategory(nm);
+  $("#fCat").value=CAT_ORDER.includes(cat)?cat:"Other";
+  $("#autoCatTag").textContent=" → auto: "+$("#fCat").value;
+  if(imgUrl){ pendingPhoto=imgUrl; showPhoto(pendingPhoto); }
+  updateFreshInfo();
+  toast("✓ Detected: "+nm,"good");
 }
 // Find a product photo by name (Open Food Facts search). Name matching is approximate — user confirms by saving.
 async function findImageByName(){
@@ -2196,14 +2282,15 @@ async function ocrDate(dataUrl){
 }
 // Robust parser: handles 19 AUG 2026 · AUG 2026 · 2026-08-19 · 19/08/2026 · 08/2026 · full month names · BB/EXP prefixes
 function parseDate(raw){
-  const t=(raw||"").toUpperCase().replace(/[^0-9A-Z]+/g," ").trim();
-  const M={JAN:1,FEB:2,MAR:3,APR:4,MAY:5,JUN:6,JUL:7,AUG:8,SEP:9,SEPT:9,OCT:10,NOV:11,DEC:12,
+  const t=(raw||"").toUpperCase().replace(/[^0-9A-Z]+/g," ").replace(/\bBB\s*MA\b/g," ").replace(/\b(BB|EXP|BEST BEFORE|MEILLEUR AVANT|USE BY|SELL BY|BEST BY|DATE)\b/g," ").replace(/\s+/g," ").trim();
+  const M={JAN:1,JA:1,FEB:2,FE:2,MAR:3,MR:3,APR:4,AL:4,AP:4,MAY:5,MA:5,JUN:6,JN:6,JUL:7,JL:7,AUG:8,AU:8,SEP:9,SE:9,SEPT:9,OCT:10,OC:10,NOV:11,NO:11,DEC:12,DE:12,
     JANUARY:1,FEBRUARY:2,MARCH:3,APRIL:4,JUNE:6,JULY:7,AUGUST:8,SEPTEMBER:9,OCTOBER:10,NOVEMBER:11,DECEMBER:12};
   const Y=y=>{y=+y; return y<100?y+2000:y;};
   let m,r;
-  if((m=t.match(/(\d{1,2})\s*([A-Z]{3,9})\s*(\d{2,4})/))&&M[m[2]]&&(r=fmt(Y(m[3]),M[m[2]],+m[1]))) return r;        // DD MMM YYYY
-  if((m=t.match(/([A-Z]{3,9})\s*(\d{4})(?!\d)/))&&M[m[1]]) return fmt(+m[2],M[m[1]],1);                              // MMM YYYY (before MMM DD, so "AUG 2026" isn't split)
-  if((m=t.match(/([A-Z]{3,9})\s+(\d{1,2})\s+(\d{2,4})/))&&M[m[1]]&&(r=fmt(Y(m[3]),M[m[1]],+m[2]))) return r;        // MMM DD YYYY
+  if((m=t.match(/(20\d{2})\s+([A-Z]{2,9})\s+(\d{1,2})/))&&M[m[2]]&&(r=fmt(+m[1],M[m[2]],+m[3]))) return r;          // YYYY MMM DD (Canadian: 2026 FE 25)
+  if((m=t.match(/(\d{1,2})\s*([A-Z]{2,9})\s*(\d{2,4})/))&&M[m[2]]&&(r=fmt(Y(m[3]),M[m[2]],+m[1]))) return r;        // DD MMM YYYY
+  if((m=t.match(/([A-Z]{2,9})\s*(\d{4})(?!\d)/))&&M[m[1]]) return fmt(+m[2],M[m[1]],1);                              // MMM YYYY (before MMM DD, so "AUG 2026" isn't split)
+  if((m=t.match(/([A-Z]{2,9})\s+(\d{1,2})\s+(\d{2,4})/))&&M[m[1]]&&(r=fmt(Y(m[3]),M[m[1]],+m[2]))) return r;        // MMM DD YYYY
   if((m=t.match(/(20\d{2})\s*(\d{1,2})\s*(\d{1,2})/))&&(r=fmt(+m[1],+m[2],+m[3]))) return r;                         // YYYY MM DD
   if((m=t.match(/(\d{1,2})\s+(\d{1,2})\s+(\d{2,4})/))){ let a=+m[1],b=+m[2],d,mo; if(a>12){d=a;mo=b;}else if(b>12){d=b;mo=a;}else{d=a;mo=b;} if((r=fmt(Y(m[3]),mo,d))) return r; } // DD MM YYYY
   if((m=t.match(/(\d{1,2})\s+(20\d{2})/))) return fmt(+m[2],+m[1],1);                                                 // MM YYYY
