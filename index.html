@@ -271,6 +271,15 @@ main{padding:12px 12px 90px;max-width:640px;margin:0 auto}
 .pantryrow .prole{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;background:#e8f5e9;color:var(--green-d)}
 .pantryrow .prole.viewer{background:#fff3e0;color:#e65100}
 .migbox{background:#fff8e1;border:1.5px solid #ffe082;border-radius:14px;padding:13px 14px;margin-bottom:14px;font-size:13.5px;color:#e65100;line-height:1.5}
+.hubhero{text-align:center;margin-bottom:18px}
+.hubhero .hubmark{width:64px;height:64px;margin:0 auto 10px;border-radius:20px;background:linear-gradient(135deg,var(--green-l),var(--green-d));display:flex;align-items:center;justify-content:center;font-size:34px;box-shadow:0 6px 16px rgba(46,125,50,.35)}
+.hubhero h2{justify-content:center;font-size:24px;letter-spacing:.3px}
+.emptyhub{text-align:center;color:var(--muted);font-size:14px;line-height:1.6;padding:18px 8px;background:#fafbf9;border:1.5px dashed var(--line);border-radius:14px;margin-bottom:14px}
+.hubactions{display:flex;gap:10px;margin-top:8px}
+.hubactions .btn{flex:1}
+.hubactions .btn.on{outline:2.5px solid var(--green-l);outline-offset:-2px}
+.hubpanel{margin-top:12px;padding:14px;background:#f4f7f1;border:1.5px solid var(--line);border-radius:14px}
+.hubpanel label{margin-top:0}
 #acctBar{position:fixed;top:0;left:0;right:0;z-index:35;display:none}
 body.viewonly .fab,body.viewonly .moveBtn,body.viewonly .openpill,body.viewonly .check,body.viewonly #btnClearChecked{display:none !important}
 .vobadge{display:none;background:#fff3e0;color:#e65100;font-weight:700;font-size:12px;text-align:center;padding:6px}
@@ -494,25 +503,37 @@ body.viewonly .vobadge{display:block}
 <div id="cloudOverlay">
   <!-- Pantry hub: create or join by code. No email/password anywhere. -->
   <div class="cloudcard" id="pantryCard">
-    <h2>🗂️ Your pantries</h2>
-    <p class="csub" id="pantrySub">Pick a pantry, make a new one, or join one someone shared with a code. No sign-up — nothing to remember.</p>
+    <div class="hubhero">
+      <div class="hubmark">🧺</div>
+      <h2 style="margin:0">PantryHub</h2>
+      <p class="csub" id="pantrySub" style="margin:4px 0 0">Tap a pantry to open it — it stays in sync across your devices and anyone you share the code with.</p>
+    </div>
     <div id="migBox"></div>
     <div id="pantryList"></div>
+    <div id="pantryEmpty" class="emptyhub" style="display:none">📭 No pantries here yet.<br>Create your first one below to get started.</div>
 
-    <label>Create a new pantry</label>
-    <div style="display:flex;gap:8px">
-      <input id="newPantryName" placeholder="e.g. Home Kitchen">
-      <button class="btn" id="newPantryGo" style="width:auto;padding:13px 16px;margin:0">Create</button>
+    <div class="hubactions">
+      <button class="btn" id="showCreate" style="margin:0">＋ New pantry</button>
+      <button class="btn sec" id="showJoin" style="margin:0">🔑 Join with a code</button>
     </div>
-    <div class="cloudmsg" id="pantryMsg"></div>
 
-    <label style="margin-top:16px">Join with a code</label>
-    <div class="sub-hint" style="margin:0 0 6px">Someone shared their pantry? Type the 6-character code they gave you.</div>
-    <div style="display:flex;gap:8px">
-      <input id="joinCode" placeholder="e.g. K7P2QM" maxlength="9" autocapitalize="characters" autocomplete="off" spellcheck="false" style="text-transform:uppercase;letter-spacing:2px;font-weight:700">
-      <button class="btn sec" id="joinGo" style="width:auto;padding:13px 16px;margin:0">Join</button>
+    <div id="createBox" class="hubpanel" style="display:none">
+      <label>Name your new pantry</label>
+      <div style="display:flex;gap:8px">
+        <input id="newPantryName" placeholder="e.g. Home Kitchen">
+        <button class="btn" id="newPantryGo" style="width:auto;padding:13px 16px;margin:0">Create</button>
+      </div>
+      <div class="cloudmsg" id="pantryMsg"></div>
     </div>
-    <div class="cloudmsg" id="joinMsg"></div>
+
+    <div id="joinBox" class="hubpanel" style="display:none">
+      <label>Enter the 6-character code someone shared with you</label>
+      <div style="display:flex;gap:8px">
+        <input id="joinCode" placeholder="e.g. K7P2QM" maxlength="9" autocapitalize="characters" autocomplete="off" spellcheck="false" style="text-transform:uppercase;letter-spacing:2px;font-weight:700">
+        <button class="btn sec" id="joinGo" style="width:auto;padding:13px 16px;margin:0">Join</button>
+      </div>
+      <div class="cloudmsg" id="joinMsg"></div>
+    </div>
   </div>
 </div>
 
@@ -856,9 +877,57 @@ function noodleInfo(name){
   return null;
 }
 
+function oatsSVG(){
+  const fl=(x,y,r)=>`<g transform="translate(${x} ${y}) rotate(${r})"><ellipse rx="2.2" ry="1.4" fill="#f0e2c4" stroke="#d3bd90" stroke-width="0.4"/><line x1="-1.5" y1="0" x2="1.5" y2="0" stroke="#c6ac7c" stroke-width="0.3"/></g>`;
+  return `<svg class="ficon" viewBox="0 0 24 24" aria-hidden="true">
+    <ellipse cx="12" cy="19.4" rx="8" ry="1.1" fill="rgba(0,0,0,.1)"/>
+    ${fl(8,10,20)}${fl(13,9,-15)}${fl(16,12,35)}${fl(10.2,13,-25)}${fl(14,15,10)}${fl(7.2,14,45)}${fl(12,12,-40)}${fl(16.6,15.6,-10)}${fl(9.4,16.4,25)}${fl(12.6,17,-18)}</svg>`;
+}
+function fishBallSVG(){
+  const b=(x,y)=>`<circle cx="${x}" cy="${y}" r="3.4" fill="#f2ead9" stroke="#c9ba97" stroke-width="0.5"/><ellipse cx="${x-1}" cy="${y-1.1}" rx="1.1" ry="0.7" fill="#fbf6ec" opacity=".7"/>`;
+  return `<svg class="ficon" viewBox="0 0 24 24" aria-hidden="true">
+    <ellipse cx="12" cy="19.6" rx="8" ry="1.1" fill="rgba(0,0,0,.1)"/>
+    ${b(8,11)}${b(15.6,10.2)}${b(12,15.4)}</svg>`;
+}
+function proteinTubSVG(){
+  return `<svg class="ficon" viewBox="0 0 24 24" aria-hidden="true">
+    <ellipse cx="12" cy="20.6" rx="7" ry="1.1" fill="rgba(0,0,0,.12)"/>
+    <rect x="5.5" y="7.5" width="13" height="12.5" rx="2" fill="#f4e6b8" stroke="#d3bd85" stroke-width="0.6"/>
+    <rect x="5" y="4.6" width="14" height="4.2" rx="1.6" fill="#8aa0c8" stroke="#5f77a3" stroke-width="0.6"/>
+    <rect x="5.5" y="11.6" width="13" height="4" fill="#d9873a"/>
+    <text x="12" y="14.8" font-size="3.1" font-weight="800" fill="#fff" text-anchor="middle" font-family="Arial,Helvetica,sans-serif">PRO</text></svg>`;
+}
+function pasteTubSVG(color){
+  return `<svg class="ficon" viewBox="0 0 24 24" aria-hidden="true">
+    <ellipse cx="12" cy="20.4" rx="7.5" ry="1.1" fill="rgba(0,0,0,.12)"/>
+    <rect x="4.5" y="8" width="15" height="11.6" rx="1.6" fill="${color}" stroke="#332114" stroke-width="0.6"/>
+    <rect x="4" y="5.8" width="16" height="3.4" rx="1.2" fill="#5a3d28" stroke="#332114" stroke-width="0.5"/>
+    <rect x="7.4" y="10.6" width="9.2" height="6" rx="1" fill="#f3e7c8" opacity=".92"/>
+    <circle cx="12" cy="13.6" r="2" fill="#c9a058"/></svg>`;
+}
+function pepperJarSVG(){
+  const p=(x,y,c,r)=>`<path transform="translate(${x} ${y}) rotate(${r})" d="M0 -2.4 Q1.6 -2.4 1.6 0 Q1.6 2.8 0 3.4 Q-1.6 2.8 -1.6 0.4 Q-1.6 -2 0 -2.4 Z" fill="${c}"/>`;
+  return `<svg class="ficon" viewBox="0 0 24 24" aria-hidden="true">
+    <rect x="5.5" y="7" width="13" height="13.6" rx="2.4" fill="#e8f2f4" stroke="#b3c8cd" stroke-width="0.7" opacity=".85"/>
+    <rect x="6.5" y="3.6" width="11" height="3.8" rx="1.2" fill="#4f7d8c" stroke="#365a66" stroke-width="0.5"/>
+    ${p(9,11,'#c62828',20)}${p(14,10.6,'#f2c200',-15)}${p(11.6,13.8,'#2e7d32',35)}${p(15,15,'#c62828',-25)}${p(8.6,15.4,'#f2c200',10)}${p(12,16.8,'#2e7d32',-40)}</svg>`;
+}
+function lemongrassSVG(){
+  const st=(x,r,h)=>`<g transform="translate(${x} 13) rotate(${r})"><rect x="-0.7" y="${-h}" width="1.4" height="${h-1.5}" rx="0.6" fill="#8fbf5a"/><rect x="-0.7" y="-2" width="1.4" height="4.5" rx="0.6" fill="#e7e3c4"/></g>`;
+  return `<svg class="ficon" viewBox="0 0 24 24" aria-hidden="true">
+    ${st(9.5,-20,9)}${st(11,-8,10)}${st(12,0,10.6)}${st(13,8,10)}${st(14.5,20,9)}
+    <rect x="8.6" y="12" width="7" height="2.3" rx="1.1" fill="#b08d4a" stroke="#8a6c34" stroke-width="0.4"/></svg>`;
+}
 function itemThumb(it){
   const n=(it.name||"").toLowerCase();
   if(it.photo) return `<img src="${it.photo}" alt="">`;
+  if(/lemongrass|lemon grass/.test(n)) return lemongrassSVG();
+  if(/protein powder|\bwhey\b|\bprotein\b/.test(n)) return proteinTubSVG();
+  if(/black bean paste|chunjang|chun jang|jajang|jjajang/.test(n)) return pasteTubSVG("#463322");
+  if(/peperoncini|pepperoncini|pickled pepper/.test(n)) return pepperJarSVG();
+  if(/fish ?ball/.test(n)) return fishBallSVG();
+  if(/oatmeal|rolled oat|\boats\b/.test(n)) return oatsSVG();
+  if(/strawberr/.test(n) && /banana/.test(n)) return "🍓🍌";
   if(/sardine|canned fish/.test(n)) return sardineCanSVG();
   if(/whole chicken/.test(n)) return wholeChickenSVG();
   if(/\brib\b|ribs\b|rack/.test(n)) return ribsSVG();
@@ -901,6 +970,9 @@ function autoCategory(name){
 /* ---------- Freshness database: days of good quality after OPENING (or after buying, for fresh produce/meat) ----------
    Values based on USDA FoodKeeper / StillTasty guidance. Longest-matching, most-specific keywords are listed first. */
 const FRESH=[
+  // --- Dry seasoning/spice OVERRIDES first (stop fresh produce/meat words from stealing the match) ---
+  [["lemon pepper","black pepper","white pepper","peppercorn","pepper flakes","red pepper","chili pepper","chilli pepper","crushed pepper","cracked pepper","pepper powder","chili flakes","chilli flakes","chili powder","cayenne pepper"],{fridge:730,freezer:730,pantry:730}],
+  [["ground cinnamon","ground ginger","ground clove","ground cumin","ground coriander","ground nutmeg","ground allspice","ground mustard","ground turmeric","ground paprika","ground pepper"],{fridge:365,freezer:365,pantry:365}],
   // --- Dairy ---
   [["evaporated","condensed milk","sweetened condensed"],{fridge:5,freezer:0,pantry:1}],
   [["coconut milk","coconut cream"],{fridge:6,freezer:30,pantry:1}],
@@ -917,7 +989,7 @@ const FRESH=[
   [["shrimp","prawn"],{fridge:2,freezer:120,pantry:0}],
   [["fish","sardine fresh","salmon","tuna fresh","tilapia","bangus"],{fridge:2,freezer:120,pantry:0}],
   [["chicken","whole chicken"],{fridge:2,freezer:270,pantry:0}],
-  [["ground beef","ground pork","ground"],{fridge:2,freezer:120,pantry:0}],
+  [["ground beef","ground pork","ground turkey","ground chicken","minced meat"],{fridge:2,freezer:120,pantry:0}],
   [["beef","pork","ribs","chuck","chop","steak","lamb"],{fridge:3,freezer:180,pantry:0}],
   [["hotdog","sausage","frank"],{fridge:7,freezer:60,pantry:1}],
   [["bacon"],{fridge:7,freezer:30,pantry:1}],
@@ -930,7 +1002,7 @@ const FRESH=[
   [["spinach","bok choy","kangkong","malunggay","dahon","lettuce","cabbage","greens","watercress","water crest"],{fridge:4,freezer:0,pantry:1}],
   [["broccoli","cauliflower","asparagus"],{fridge:6,freezer:240,pantry:1}],
   [["mushroom"],{fridge:6,freezer:0,pantry:1}],
-  [["sitaw","green bean","long bean","okra","pepper","peperoncini fresh"],{fridge:7,freezer:0,pantry:2}],
+  [["sitaw","green bean","long bean","okra","sili","peperoncini fresh"],{fridge:7,freezer:0,pantry:2}],
   [["bell pepper"],{fridge:10,freezer:180,pantry:2}],
   [["kalabasa","squash","pumpkin"],{fridge:14,freezer:180,pantry:30}],
   [["carrot"],{fridge:28,freezer:240,pantry:3}],
@@ -972,19 +1044,20 @@ const FRESH=[
   [["coffee","mccafe"],{fridge:30,freezer:60,pantry:21}],
   [["peanut butter powder","protein powder","whey","cocoa"],{fridge:0,freezer:0,pantry:180}],
   [["honey"],{fridge:0,freezer:0,pantry:730}],
-  [["molasses","syrup","sugar","salt"],{fridge:0,freezer:0,pantry:365}],
+  [["molasses","syrup","maple","corn syrup"],{fridge:365,freezer:0,pantry:365}],
+  [["sugar","salt"],{fridge:1095,freezer:1095,pantry:1095}],
   [["flour","semolina"],{fridge:180,freezer:365,pantry:180}],
   [["starch","cornstarch","tapioca"],{fridge:0,freezer:0,pantry:540}],
   // --- Spices / seasonings (ground lose potency ~1yr; whole longer) ---
   [["cube","bouillon","stock cube"],{fridge:0,freezer:0,pantry:365}],
-  [["powder","ground","seasoning","paprika","cayenne","cumin","curry","chili","turmeric","cinnamon","basil","oregano","thyme","sage","bay leaf","coriander","tarragon","savoury","kelp","dried"],{fridge:0,freezer:0,pantry:365}],
-  [["whole","seed","clove","anise","cardamon","cardamom","peppercorn","fennel","stick"],{fridge:0,freezer:0,pantry:730}],
+  [["powder","ground","seasoning","paprika","cayenne","cumin","curry","chili","turmeric","cinnamon","basil","oregano","thyme","sage","bay leaf","coriander","tarragon","savoury","kelp","dried"],{fridge:365,freezer:365,pantry:365}],
+  [["whole","seed","clove","anise","cardamon","cardamom","peppercorn","fennel","stick"],{fridge:730,freezer:730,pantry:730}],
   // --- Grains / pasta / noodles (after opening) ---
   [["fresh noodle","fresh udon","udon"],{fridge:7,freezer:120,pantry:180}],
   [["corn tortilla","tortilla"],{fridge:21,freezer:180,pantry:7}],
-  [["rice noodle","egg noodle","ramen","lasagna","spaghetti","vermicelli","pasta","noodle"],{fridge:0,freezer:0,pantry:365}],
-  [["oats","oatmeal"],{fridge:0,freezer:0,pantry:180}],
-  [["rice","mung bean","bean","grain","quinoa"],{fridge:0,freezer:0,pantry:365}],
+  [["rice noodle","egg noodle","ramen","lasagna","spaghetti","vermicelli","pasta","noodle"],{fridge:180,freezer:730,pantry:365}],
+  [["oats","oatmeal"],{fridge:180,freezer:365,pantry:180}],
+  [["rice","mung bean","bean","grain","quinoa"],{fridge:365,freezer:730,pantry:365}],
   // --- Frozen / misc ---
   [["frozen"],{fridge:2,freezer:180,pantry:0}],
   [["bread","pan bread","loaf","bun"],{fridge:14,freezer:90,pantry:5}],
@@ -1891,12 +1964,13 @@ function handleVoice(t, original){
     const it=findItemByName(name);
     if(it){
       it.percent=pct;
-      if(pct<=25 && it.location==="pantry"){ it.location="grocery"; it.checked=false; }
+      // Keep it in the pantry so the new percentage is visible; only a "no more X" fully moves it.
+      if(it.location==="grocery" && pct>25){ it.location="pantry"; it.checked=false; }
       save(); renderAll();
-      const added=pct<=25?" and added it to your grocery list":"";
-      speak(`Set ${it.name} to ${pct} percent${added}.`);
-      vlabel(`✅ ${it.name} → ${pct}%${added}`);
-      toast(`✅ ${it.name} set to ${pct}%${added}`,"good");
+      const lowNote=pct<=25?" — running low":"";
+      speak(`Set ${it.name} to ${pct} percent${lowNote}.`);
+      vlabel(`✅ ${it.name} → ${pct}%${lowNote}`);
+      toast(`✅ ${it.name} set to ${pct}%${lowNote}`,"good");
     }else{
       speak(`I couldn't find ${name}.`);
       toast(`❌ “${name.trim()}” not found`,"warn");
@@ -2139,8 +2213,23 @@ if(window.CLOUD){
   let docUnsub=null, curId=null, curData=null;
   const KEY="pantry_grocery_v1";           // legacy local pantry data (for migration)
   const LIST="pantry_cloud_list";          // this device's known pantries: [{code,name,owner}]
+  const LAST="pantry_cloud_last";          // code of the pantry to reopen on launch
+  let didAutoOpen=false;
 
   overlay.classList.add("on");
+
+  /* ---------- Create / Join panels toggle (kept out of the way until wanted) ---------- */
+  function togglePanel(which){
+    const cB=$("#createBox"), jB=$("#joinBox"), cBtn=$("#showCreate"), jBtn=$("#showJoin");
+    const openC = which==="create" && cB.style.display==="none";
+    const openJ = which==="join"   && jB.style.display==="none";
+    cB.style.display=openC?"":"none"; jB.style.display=openJ?"":"none";
+    cBtn.classList.toggle("on",openC); jBtn.classList.toggle("on",openJ);
+    if(openC) setTimeout(()=>$("#newPantryName").focus(),50);
+    if(openJ) setTimeout(()=>$("#joinCode").focus(),50);
+  }
+  $("#showCreate").addEventListener("click",()=>togglePanel("create"));
+  $("#showJoin").addEventListener("click",()=>togglePanel("join"));
 
   /* ---------- Local list of known pantries (no accounts) ---------- */
   function getList(){ try{ return JSON.parse(localStorage.getItem(LIST)||"[]"); }catch(e){ return []; } }
@@ -2157,6 +2246,12 @@ if(window.CLOUD){
     if(!user){ signInAnonymously(auth).catch(e=>{ $("#pantryMsg").className="cloudmsg err"; $("#pantryMsg").textContent=friendly(e); }); return; }
     uid=user.uid;
     renderList();
+    // Skip the hub on launch: reopen the last pantry straight away.
+    if(!didAutoOpen){
+      didAutoOpen=true;
+      const last=localStorage.getItem(LAST);
+      if(last && getList().some(p=>p.code===last)) openPantry(last);
+    }
   });
   function friendly(e){
     const c=(e&&e.code)||"";
@@ -2177,6 +2272,7 @@ if(window.CLOUD){
       el.addEventListener("click",()=>openPantry(p.code));
       list.appendChild(el);
     });
+    $("#pantryEmpty").style.display=rows.length?"none":"";
     // First-time migration: local pantry data + no cloud pantries yet
     const mig=$("#migBox"); mig.innerHTML="";
     let local=null; try{ local=JSON.parse(localStorage.getItem(KEY)||"null"); }catch(e){}
@@ -2235,6 +2331,7 @@ if(window.CLOUD){
   function openPantry(code){
     if(docUnsub) docUnsub();
     curId=code;
+    try{ localStorage.setItem(LAST, code); }catch(e){}
     docUnsub=onSnapshot(doc(db,"pantries",code),{includeMetadataChanges:true},snap=>{
       if(!snap.exists()){ toast("This pantry was deleted","warn"); forget(code); backToList(); return; }
       if(snap.metadata.hasPendingWrites) return;
@@ -2250,17 +2347,22 @@ if(window.CLOUD){
       overlay.classList.remove("on");
     },err=>{ toast("Sync error: "+err.code,"bad"); });
   }
-  function backToList(){ if(docUnsub){docUnsub();docUnsub=null;} curId=null; curData=null; window.Sync.ready=false; renderList(); overlay.classList.add("on"); }
+  function backToList(){ flushNow(); if(docUnsub){docUnsub();docUnsub=null;} curId=null; curData=null; window.Sync.ready=false; renderList(); overlay.classList.add("on"); }
   $("#btnSwitchPantry").addEventListener("click",()=>{ $("#settingsScrim").classList.remove("on"); backToList(); });
 
   /* ---------- Debounced push ---------- */
-  let pushTimer=null, latest=null;
-  window.Sync={ready:false, push(st){ latest=st; clearTimeout(pushTimer); pushTimer=setTimeout(flush,700); }};
+  let pushTimer=null, latest=null, dirty=false;
+  window.Sync={ready:false, push(st){ latest=st; dirty=true; clearTimeout(pushTimer); pushTimer=setTimeout(flush,700); }};
   async function flush(){
-    if(!curId || !window.Sync.ready) return;
+    if(!curId || !window.Sync.ready || !dirty) return;
+    dirty=false; clearTimeout(pushTimer);
     try{ await updateDoc(doc(db,"pantries",curId),{state:clean(latest), updatedAt:serverTimestamp()}); }
-    catch(e){ toast("Couldn't sync change: "+(e.code||""),"warn"); }
+    catch(e){ dirty=true; toast("Couldn't sync change: "+(e.code||""),"warn"); }
   }
+  // Push any pending edit immediately (before switching pantry / leaving the page)
+  function flushNow(){ if(dirty && curId && window.Sync.ready){ clearTimeout(pushTimer); const body={state:clean(latest), updatedAt:serverTimestamp()}; dirty=false; updateDoc(doc(db,"pantries",curId),body).catch(()=>{ dirty=true; }); } }
+  window.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="hidden") flushNow(); });
+  window.addEventListener("pagehide",flushNow);
 
   /* ---------- Sharing / settings ---------- */
   function updateSettingsUI(){
