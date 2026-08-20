@@ -280,6 +280,14 @@ main{padding:12px 12px 90px;max-width:640px;margin:0 auto}
 .hubactions .btn.on{outline:2.5px solid var(--green-l);outline-offset:-2px}
 .hubpanel{margin-top:12px;padding:14px;background:#f4f7f1;border:1.5px solid var(--line);border-radius:14px}
 .hubpanel label{margin-top:0}
+.hubloading{margin:auto;text-align:center;color:var(--muted)}
+.hubspin{width:44px;height:44px;margin:0 auto 14px;border:4px solid rgba(46,125,50,.2);border-top-color:var(--green);border-radius:50%;animation:hubsp 0.8s linear infinite}
+.hubloadtxt{font-size:14px;font-weight:600}
+@keyframes hubsp{to{transform:rotate(360deg)}}
+.vacrow{display:flex;align-items:center;gap:9px;text-transform:none;letter-spacing:0;font-size:14.5px;font-weight:600;color:var(--ink);cursor:pointer}
+.vacrow input{width:20px;height:20px;accent-color:var(--green);flex:0 0 auto}
+.vacrow em{color:var(--muted);font-style:normal;font-weight:500;font-size:12.5px}
+.vacbadge{font-size:11px}
 #acctBar{position:fixed;top:0;left:0;right:0;z-index:35;display:none}
 body.viewonly .fab,body.viewonly .moveBtn,body.viewonly .openpill,body.viewonly .check,body.viewonly #btnClearChecked{display:none !important}
 .vobadge{display:none;background:#fff3e0;color:#e65100;font-weight:700;font-size:12px;text-align:center;padding:6px}
@@ -354,6 +362,10 @@ body.viewonly .vobadge{display:block}
         <button data-v="fridge">❄️ Fridge</button>
         <button data-v="freezer">🧊 Freezer</button>
       </div>
+    </div>
+
+    <div class="field">
+      <label class="vacrow"><input type="checkbox" id="fVac"> <span>🛍️ Vacuum sealed <em>(extends shelf life)</em></span></label>
     </div>
 
     <div class="field">
@@ -501,10 +513,20 @@ body.viewonly .vobadge{display:block}
 
 <!-- ============ Cloud / pantry overlay (no accounts — code based) ============ -->
 <div id="cloudOverlay">
+  <!-- Neutral loading state so the create form never flashes before the last pantry opens -->
+  <div id="hubLoading" class="hubloading"><div class="hubspin"></div><div class="hubloadtxt">Opening your pantry…</div></div>
   <!-- Pantry hub: create or join by code. No email/password anywhere. -->
-  <div class="cloudcard" id="pantryCard">
+  <div class="cloudcard" id="pantryCard" style="display:none">
     <div class="hubhero">
-      <div class="hubmark">🧺</div>
+      <div class="hubmark"><svg viewBox="0 0 48 48" width="40" height="40" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <line x1="8" y1="20" x2="40" y2="20"/><line x1="8" y1="34" x2="40" y2="34"/>
+        <rect x="12" y="12" width="6" height="8" rx="1" fill="#fff" stroke="none" opacity=".95"/>
+        <rect x="21" y="9" width="5" height="11" rx="2" fill="#fff" stroke="none" opacity=".8"/>
+        <rect x="29" y="13" width="7" height="7" rx="1" fill="#fff" stroke="none" opacity=".9"/>
+        <rect x="12" y="27" width="7" height="7" rx="1" fill="#fff" stroke="none" opacity=".85"/>
+        <rect x="22" y="24" width="5" height="10" rx="1" fill="#fff" stroke="none" opacity=".95"/>
+        <circle cx="33" cy="30" r="4" fill="#fff" stroke="none" opacity=".8"/>
+      </svg></div>
       <h2 style="margin:0">PantryHub</h2>
       <p class="csub" id="pantrySub" style="margin:4px 0 0">Tap a pantry to open it — it stays in sync across your devices and anyone you share the code with.</p>
     </div>
@@ -571,12 +593,14 @@ const DEFAULT_CATS=[
   ["Protein","🥩"],["Fruit/Veggies","🥬"],["Dairy/Non-Dairy","🥛"],["Baking","🧁"],
   ["Seasonings","🌿"],["Cooking Spices","🧂"],["Sauces/Oils","🫙"],
   ["Condiments","🥫"],["Canned/Soup","🍲"],["Pasta/Grains/Noodles","🍜"],
-  ["Frozen","🧊"],["Dried","🍇"],["Beverages","🥤"],
+  ["Frozen","🧊"],["Dried","🍂"],["Beverages","🥤"],
   ["Supplements","💊"],["Other","📦"]
 ];
 let CAT_ORDER=[], CAT_ICON={};
 function rebuildCats(){
   if(!state.cats || !state.cats.length) state.cats=DEFAULT_CATS.map(([name,icon])=>({name,icon}));
+  // Retire the old berry icon on the Dried category (idempotent — runs once, then it's 🍂)
+  const dried=state.cats.find(c=>c.name==="Dried"); if(dried && dried.icon==="🍇") dried.icon="🍂";
   CAT_ORDER=state.cats.map(c=>c.name);
   CAT_ICON=Object.fromEntries(state.cats.map(c=>[c.name,c.icon]));
 }
@@ -918,9 +942,101 @@ function lemongrassSVG(){
     ${st(9.5,-20,9)}${st(11,-8,10)}${st(12,0,10.6)}${st(13,8,10)}${st(14.5,20,9)}
     <rect x="8.6" y="12" width="7" height="2.3" rx="1.1" fill="#b08d4a" stroke="#8a6c34" stroke-width="0.4"/></svg>`;
 }
+function beansSVG(color){
+  const s=shades(color);
+  const b=(x,y,r)=>`<g transform="translate(${x} ${y}) rotate(${r})"><ellipse rx="1.9" ry="1.25" fill="${color}" stroke="${s.D}" stroke-width="0.3"/><path d="M-1.1 0 Q0 -0.55 1.1 0" stroke="${s.D}" stroke-width="0.3" fill="none"/></g>`;
+  return `<svg class="ficon" viewBox="0 0 24 24" aria-hidden="true">
+    <ellipse cx="12" cy="19.4" rx="8" ry="1.1" fill="rgba(0,0,0,.1)"/>
+    ${b(8.5,11,20)}${b(12.5,10,-20)}${b(15.5,12,40)}${b(10,13,-30)}${b(13.5,14.4,15)}${b(7.8,14.6,55)}${b(16,15.2,-25)}${b(11,16,25)}${b(14,16.6,-10)}</svg>`;
+}
+function leavesSVG(color){
+  const s=shades(color);
+  const lf=(x,y,r)=>`<g transform="translate(${x} ${y}) rotate(${r})"><path d="M0 -3 Q2 -0.6 0 3 Q-2 -0.6 0 -3 Z" fill="${color}" stroke="${s.D}" stroke-width="0.3"/><line x1="0" y1="-2.4" x2="0" y2="2.4" stroke="${s.D}" stroke-width="0.3"/></g>`;
+  return `<svg class="ficon" viewBox="0 0 24 24" aria-hidden="true">
+    <ellipse cx="12" cy="19.4" rx="8" ry="1.1" fill="rgba(0,0,0,.1)"/>
+    ${lf(9,11,25)}${lf(14,10,-20)}${lf(11.5,14,60)}${lf(15.5,15,-40)}${lf(8,15,-12)}${lf(12.6,16.4,115)}${lf(10.4,16.8,150)}</svg>`;
+}
+function seedsSVG(color, round){
+  const s=shades(color);
+  const sd=(x,y,r)=> round
+    ? `<circle cx="${x}" cy="${y}" r="1.4" fill="${color}" stroke="${s.D}" stroke-width="0.3"/><path d="M${x-0.9} ${y} Q${x} ${y-0.5} ${x+0.9} ${y}" stroke="${s.D}" stroke-width="0.2" fill="none" opacity=".6"/>`
+    : `<g transform="translate(${x} ${y}) rotate(${r})"><ellipse rx="1.6" ry="0.85" fill="${color}" stroke="${s.D}" stroke-width="0.3"/><line x1="-1.1" y1="0" x2="1.1" y2="0" stroke="${s.D}" stroke-width="0.25"/></g>`;
+  return `<svg class="ficon" viewBox="0 0 24 24" aria-hidden="true">
+    <ellipse cx="12" cy="19.4" rx="8" ry="1.1" fill="rgba(0,0,0,.1)"/>
+    ${sd(8.5,11,20)}${sd(12,10,-25)}${sd(15.5,11.5,40)}${sd(10,13,-10)}${sd(13.5,14,15)}${sd(7.6,14.6,50)}${sd(16,15.2,-30)}${sd(11,16,25)}${sd(14,16.6,-15)}${sd(9.6,17,10)}</svg>`;
+}
+function flakesSVG(color){
+  const s=shades(color);
+  const fk=(x,y,r)=>`<rect transform="translate(${x} ${y}) rotate(${r})" x="-1" y="-0.55" width="2" height="1.1" rx="0.3" fill="${color}" stroke="${s.D}" stroke-width="0.2"/>`;
+  return `<svg class="ficon" viewBox="0 0 24 24" aria-hidden="true">
+    <ellipse cx="12" cy="19.4" rx="8" ry="1.1" fill="rgba(0,0,0,.1)"/>
+    ${fk(8.5,11,20)}${fk(12,10.4,-35)}${fk(15,11.6,55)}${fk(10,13,-15)}${fk(13.6,13.6,25)}${fk(7.8,14.4,70)}${fk(15.8,15,-40)}${fk(11,15.6,10)}${fk(13.8,16.4,-20)}${fk(9.6,16.8,45)}${fk(12.6,17,80)}</svg>`;
+}
+function starAniseSVG(){
+  const cx=12,cy=13,ro=6,ri=2.5; let pts="";
+  for(let i=0;i<8;i++){ const a=i*Math.PI/4-Math.PI/2; pts+=`${(cx+Math.cos(a)*ro).toFixed(2)},${(cy+Math.sin(a)*ro).toFixed(2)} ${(cx+Math.cos(a+Math.PI/8)*ri).toFixed(2)},${(cy+Math.sin(a+Math.PI/8)*ri).toFixed(2)} `; }
+  return `<svg class="ficon" viewBox="0 0 24 24" aria-hidden="true">
+    <ellipse cx="12" cy="19.6" rx="6.5" ry="1" fill="rgba(0,0,0,.1)"/>
+    <polygon points="${pts}" fill="#7a4a24" stroke="#4d2c12" stroke-width="0.4"/>
+    <circle cx="12" cy="13" r="1.4" fill="#b5824a"/></svg>`;
+}
+function cinnamonSticksSVG(){
+  const st=(x,r)=>`<g transform="translate(${x} 12) rotate(${r})"><rect x="-1.3" y="-6.5" width="2.6" height="13" rx="1.3" fill="#8a4a24" stroke="#5c2f16" stroke-width="0.4"/><rect x="-0.35" y="-6.5" width="0.9" height="13" fill="#6e3a1c"/></g>`;
+  return `<svg class="ficon" viewBox="0 0 24 24" aria-hidden="true">
+    <ellipse cx="12" cy="19.6" rx="6.5" ry="1" fill="rgba(0,0,0,.1)"/>
+    ${st(10,-12)}${st(13.4,10)}${st(12,-2)}</svg>`;
+}
+function cheeseWedgeSVG(color){
+  const s=shades(color);
+  return `<svg class="ficon" viewBox="0 0 24 24" aria-hidden="true">
+    <ellipse cx="12" cy="19.2" rx="7.5" ry="1.1" fill="rgba(0,0,0,.12)"/>
+    <path d="M4 16.4 L17.6 7.6 Q20 6.6 20 9.2 L20 15.6 Q20 16.4 19 16.4 Z" fill="${color}" stroke="${s.D}" stroke-width="0.5"/>
+    <path d="M4 16.4 L17.6 7.6 Q20 6.6 20 9.2 Z" fill="${s.L}"/>
+    <circle cx="12" cy="13.6" r="1" fill="${s.D}" opacity=".45"/><circle cx="15" cy="12.2" r="0.8" fill="${s.D}" opacity=".45"/><circle cx="9.6" cy="14.8" r="0.7" fill="${s.D}" opacity=".45"/></svg>`;
+}
+function coffeeCanSVG(){
+  return `<svg class="ficon" viewBox="0 0 24 24" aria-hidden="true">
+    <ellipse cx="12" cy="20.4" rx="6.5" ry="1.1" fill="rgba(0,0,0,.14)"/>
+    <rect x="6" y="5" width="12" height="15" rx="1.6" fill="#1c1c1e" stroke="#000" stroke-width="0.5"/>
+    <ellipse cx="12" cy="5" rx="6" ry="1.4" fill="#3a3a3d"/>
+    <rect x="6" y="10.4" width="12" height="5.4" fill="#7a2c1f"/>
+    <text x="12" y="14.2" font-size="2.4" font-weight="800" fill="#f4d9a0" text-anchor="middle" font-family="Arial,Helvetica,sans-serif">McCafé</text></svg>`;
+}
+function pickleJarSVG(sweet){
+  const brine=sweet?"#e6c24a":"#bcd66a";
+  const pk=(x,y,r)=>`<rect transform="translate(${x} ${y}) rotate(${r})" x="-1" y="-3.3" width="2" height="6.6" rx="1" fill="#6b8f2e" stroke="#4e6b1f" stroke-width="0.3"/>`;
+  const dill=sweet?"":`<circle cx="9" cy="11.4" r=".4" fill="#3d5a1f"/><circle cx="14.2" cy="12.8" r=".4" fill="#3d5a1f"/><circle cx="10.8" cy="15.4" r=".4" fill="#3d5a1f"/><circle cx="15" cy="16.4" r=".4" fill="#3d5a1f"/>`;
+  return `<svg class="ficon" viewBox="0 0 24 24" aria-hidden="true">
+    <rect x="6" y="7" width="12" height="13.4" rx="2.2" fill="${brine}" stroke="#a4b46e" stroke-width="0.6" opacity=".5"/>
+    <rect x="6.6" y="3.9" width="10.8" height="3.4" rx="1" fill="#7a8a3a" stroke="#5c6b28" stroke-width="0.4"/>
+    ${pk(9.6,13,8)}${pk(13,12,-10)}${pk(11.2,16,15)}
+    ${dill}
+    <rect x="6" y="7" width="12" height="13.4" rx="2.2" fill="none" stroke="#c2d090" stroke-width="0.6"/></svg>`;
+}
+// Whole / leaf / seed / flake spices — so they don't all render as identical powder mounds
+function wholeSpiceSVG(name){
+  const n=name.toLowerCase();
+  if(/cinnamon stick/.test(n)) return cinnamonSticksSVG();
+  if(/star anise/.test(n)) return starAniseSVG();
+  if(/pepper flake|red pepper|chili flake|chilli flake|crushed pepper|crushed red|chili pepper flake/.test(n)) return flakesSVG("#b5341b");
+  if(/\bkelp\b|seaweed|\bnori\b|wakame|dried kelp/.test(n)) return flakesSVG("#2f5d3a");
+  if(/bay leaf|oregano|tarragon|savoury|savory|italian seasoning|\bthyme\b|\bsage\b|rosemary|marjoram|dried basil|\bbasil\b|parsley/.test(n)) return leavesSVG("#5c7d3a");
+  if(/cardamom|cardamon/.test(n)) return seedsSVG("#b7c78a", false);
+  if(/\bclove\b|whole clove/.test(n)) return seedsSVG("#5a3a1e", false);
+  if(/fennel seed|\bfennel\b|cumin seed|caraway|mustard seed|celery seed|dill seed/.test(n)) return seedsSVG("#a98a4e", false);
+  if(/coriander/.test(n)) return seedsSVG("#c8a95e", true);
+  if(/peppercorn|whole black pepper/.test(n)) return seedsSVG("#2b2b2b", true);
+  return null;
+}
 function itemThumb(it){
   const n=(it.name||"").toLowerCase();
   if(it.photo) return `<img src="${it.photo}" alt="">`;
+  if(/cheese sauce|liquid cheese|nacho cheese/.test(n)) return bottleSVG("#f0a72e");
+  if(/mozzarella|white cheese|string cheese/.test(n)) return cheeseWedgeSVG("#f7f3e6");
+  if(/mccafe|mc cafe/.test(n)) return coffeeCanSVG();
+  if(/pickle/.test(n)) return pickleJarSVG(/sweet/.test(n));
+  if(/mung bean|\bmung\b/.test(n)) return beansSVG("#7d8b3a");
+  const wsp=wholeSpiceSVG(it.name); if(wsp) return wsp;
   if(/lemongrass|lemon grass/.test(n)) return lemongrassSVG();
   if(/protein powder|\bwhey\b|\bprotein\b/.test(n)) return proteinTubSVG();
   if(/black bean paste|chunjang|chun jang|jajang|jjajang/.test(n)) return pasteTubSVG("#463322");
@@ -1218,13 +1334,16 @@ function seed(){
 
 /* ---------- Freshness computation ---------- */
 function daysBetween(a,b){ return Math.round((new Date(b)-new Date(a))/86400000); }
+// Vacuum sealing slows spoilage/oxidation & prevents freezer burn — research-backed rough multipliers.
+function vacMult(store){ return store==="freezer"?2.5 : store==="fridge"?2 : 1.5; }
 function freshStatus(item){
   // Returns {useBy, daysLeft, label, level} or null
   let useBy=null, source=null;
   if(item.opened){
     const sl=shelfLife(item.name);
     if(sl){
-      const d=sl[item.store]??sl.pantry;
+      let d=sl[item.store]??sl.pantry;
+      if(d>0 && item.vac) d=Math.round(d*vacMult(item.store));
       if(d>0){ const dt=new Date(item.opened); dt.setDate(dt.getDate()+d); useBy=dt.toISOString().slice(0,10); source="opened"; }
     }
   }
@@ -1520,6 +1639,7 @@ function openItemSheet(id){
   $("#fQty").value=it?it.qty:"";
   $("#fExp").value=it?(it.exp||""):"";
   $("#fOpen").value=it?(it.opened||""):"";
+  $("#fVac").checked=!!(it&&it.vac);
   $("#fNote").value=it?it.note:"";
   setStore(it?it.store:"pantry");
   updatePct();
@@ -1564,6 +1684,7 @@ $("#fName").addEventListener("input",()=>{
 });
 $("#fExp").addEventListener("change",updateFreshInfo);
 $("#fOpen").addEventListener("change",updateFreshInfo);
+$("#fVac").addEventListener("change",updateFreshInfo);
 $("#chipOpenToday").addEventListener("click",()=>{
   const el=$("#fOpen");
   if(el.value){ el.value=""; toast("Marked as unopened","good"); }   // any opened date → clear it
@@ -1577,14 +1698,16 @@ function updateFreshInfo(){
   const nm=$("#fName").value.trim()||"item";
   const opened=$("#fOpen").value;
   const exp=$("#fExp").value;
-  const tmp={name:nm,store:storeVal,opened:opened||null,exp:exp||null};
+  const vac=$("#fVac")?$("#fVac").checked:false;
+  const tmp={name:nm,store:storeVal,opened:opened||null,exp:exp||null,vac};
   const sl=shelfLife(nm);
   let html="";
   if(opened && sl){
-    const d=sl[storeVal]??sl.pantry;
+    let d=sl[storeVal]??sl.pantry;
+    if(d>0 && vac) d=Math.round(d*vacMult(storeVal));
     if(d>0){
       const dt=new Date(opened); dt.setDate(dt.getDate()+d);
-      html+=`Once opened, keep in the <b>${storeVal}</b> for about <b>${d} days</b> → best used by <b>${dt.toISOString().slice(0,10)}</b>.`;
+      html+=`Once opened${vac?" & vacuum-sealed":""}, keep in the <b>${storeVal}</b> for about <b>${d} days</b> → best used by <b>${dt.toISOString().slice(0,10)}</b>.`;
     }else{
       html+=`Best stored elsewhere once opened — the ${storeVal} isn't ideal for this item.`;
     }
@@ -1609,7 +1732,7 @@ $("#btnSaveItem").addEventListener("click",()=>{
     name, category:$("#fCat").value,
     percent: parseInt($("#fPct").value,10),
     qty:$("#fQty").value.trim(), exp:$("#fExp").value||null, opened:$("#fOpen").value||null,
-    store:storeVal, note:$("#fNote").value.trim(), photo:pendingPhoto||null,
+    store:storeVal, vac:$("#fVac").checked, note:$("#fNote").value.trim(), photo:pendingPhoto||null,
   };
   if(editingId){
     Object.assign(getItem(editingId),data);
@@ -2246,13 +2369,15 @@ if(window.CLOUD){
     if(!user){ signInAnonymously(auth).catch(e=>{ $("#pantryMsg").className="cloudmsg err"; $("#pantryMsg").textContent=friendly(e); }); return; }
     uid=user.uid;
     renderList();
-    // Skip the hub on launch: reopen the last pantry straight away.
+    // Skip the hub on launch: reopen the last pantry straight away (spinner stays up until it loads).
     if(!didAutoOpen){
       didAutoOpen=true;
       const last=localStorage.getItem(LAST);
-      if(last && getList().some(p=>p.code===last)) openPantry(last);
+      if(last && getList().some(p=>p.code===last)){ openPantry(last); return; }
     }
+    showHub();
   });
+  function showHub(){ $("#hubLoading").style.display="none"; $("#pantryCard").style.display=""; }
   function friendly(e){
     const c=(e&&e.code)||"";
     if(c.includes("admin-restricted")||c.includes("operation-not-allowed")) return "Turn on Anonymous sign-in in Firebase → Authentication → Sign-in method.";
@@ -2345,9 +2470,9 @@ if(window.CLOUD){
       renameLocal(code, curData.name||"Pantry");
       updateSettingsUI();
       overlay.classList.remove("on");
-    },err=>{ toast("Sync error: "+err.code,"bad"); });
+    },err=>{ toast("Sync error: "+err.code,"bad"); showHub(); });
   }
-  function backToList(){ flushNow(); if(docUnsub){docUnsub();docUnsub=null;} curId=null; curData=null; window.Sync.ready=false; renderList(); overlay.classList.add("on"); }
+  function backToList(){ flushNow(); if(docUnsub){docUnsub();docUnsub=null;} curId=null; curData=null; window.Sync.ready=false; renderList(); showHub(); overlay.classList.add("on"); }
   $("#btnSwitchPantry").addEventListener("click",()=>{ $("#settingsScrim").classList.remove("on"); backToList(); });
 
   /* ---------- Debounced push ---------- */
