@@ -418,7 +418,7 @@ body.viewonly .vobadge{display:block}
 <div class="scrim" id="noteScrim">
   <div class="sheet">
     <div class="grab"></div>
-    <h2>New Note</h2>
+    <h2 id="noteSheetTitle">New Note</h2>
     <div class="field">
       <textarea id="noteText" placeholder="Write anything… shopping reminders, meal ideas, brands to buy…" style="min-height:140px"></textarea>
     </div>
@@ -1013,6 +1013,19 @@ function pickleJarSVG(sweet){
     ${dill}
     <rect x="6" y="7" width="12" height="13.4" rx="2.2" fill="none" stroke="#c2d090" stroke-width="0.6"/></svg>`;
 }
+// A single whole bay-type leaf (elongated, with veins)
+function bayLeafSVG(){
+  const leaf=(x,y,r)=>`<g transform="translate(${x} ${y}) rotate(${r})"><path d="M0 -6 Q3 -3 2.2 3 Q1 6 0 6.4 Q-1 6 -2.2 3 Q-3 -3 0 -6 Z" fill="#5f7d3f" stroke="#3f5626" stroke-width="0.4"/><line x1="0" y1="-5.2" x2="0" y2="5.6" stroke="#3f5626" stroke-width="0.4"/><path d="M0 -2 Q1.4 -1.4 1.8 0.4 M0 0.4 Q1.2 0.8 1.6 2.2 M0 -1 Q-1.4 -0.6 -1.8 0.8 M0 1.4 Q-1.2 1.8 -1.6 3" stroke="#3f5626" stroke-width="0.25" fill="none" opacity=".7"/></g>`;
+  return `<svg class="ficon" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="19.6" rx="6" ry="1" fill="rgba(0,0,0,.1)"/>${leaf(10,12,-18)}${leaf(14.2,12.6,24)}</svg>`;
+}
+// Crushed dried herbs — small irregular green/brown flakes (oregano, basil, thyme, italian…)
+function herbFlakesSVG(){
+  const cols=["#6f8a3e","#556e2c","#7d6b34","#4e5f28","#8a7d46","#3f5320"];
+  const pts=[[8.5,11],[10,10.3],[11.6,11],[13.2,10.5],[14.8,11.2],[9.4,12.5],[11,12.8],[12.6,12.3],[14.2,13],[8,13.6],[15.6,13.1],[10.2,14],[12,14.2],[13.6,14.4],[9,15],[11.2,15.4],[13,15.6],[14.6,15.1],[10,16.4],[12.2,16.6],[13.8,16.5],[8.9,16.7],[15.1,16.2]];
+  let bits="";
+  pts.forEach((p,i)=>{ const c=cols[i%cols.length]; const r=(i*53)%360; bits+=`<rect transform="translate(${p[0]} ${p[1]}) rotate(${r})" x="-0.75" y="-0.42" width="1.5" height="0.84" rx="0.3" fill="${c}"/>`; });
+  return `<svg class="ficon" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="19.4" rx="8" ry="1.05" fill="rgba(0,0,0,.1)"/>${bits}</svg>`;
+}
 // Whole / leaf / seed / flake spices — so they don't all render as identical powder mounds
 function wholeSpiceSVG(name){
   const n=name.toLowerCase();
@@ -1020,7 +1033,9 @@ function wholeSpiceSVG(name){
   if(/star anise/.test(n)) return starAniseSVG();
   if(/pepper flake|red pepper|chili flake|chilli flake|crushed pepper|crushed red|chili pepper flake/.test(n)) return flakesSVG("#b5341b");
   if(/\bkelp\b|seaweed|\bnori\b|wakame|dried kelp/.test(n)) return flakesSVG("#2f5d3a");
-  if(/bay leaf|oregano|tarragon|savoury|savory|italian seasoning|\bthyme\b|\bsage\b|rosemary|marjoram|dried basil|\bbasil\b|parsley/.test(n)) return leavesSVG("#5c7d3a");
+  if(/bay leaf|bay leaves/.test(n)) return bayLeafSVG();
+  if(/oregano|tarragon|savoury|savory|italian seasoning|\bthyme\b|\bsage\b|rosemary|marjoram|dried basil|\bbasil\b|parsley|herbs de|herbes de|mixed herb|dried mint/.test(n)) return herbFlakesSVG();
+  if(/black cardamom|black cardamon/.test(n)) return seedsSVG("#37281c", false);
   if(/cardamom|cardamon/.test(n)) return seedsSVG("#b7c78a", false);
   if(/\bclove\b|whole clove/.test(n)) return seedsSVG("#5a3a1e", false);
   if(/fennel seed|\bfennel\b|cumin seed|caraway|mustard seed|celery seed|dill seed/.test(n)) return seedsSVG("#a98a4e", false);
@@ -1089,6 +1104,10 @@ const FRESH=[
   // --- Dry seasoning/spice OVERRIDES first (stop fresh produce/meat words from stealing the match) ---
   [["lemon pepper","black pepper","white pepper","peppercorn","pepper flakes","red pepper","chili pepper","chilli pepper","crushed pepper","cracked pepper","pepper powder","chili flakes","chilli flakes","chili powder","cayenne pepper"],{fridge:730,freezer:730,pantry:730}],
   [["ground cinnamon","ground ginger","ground clove","ground cumin","ground coriander","ground nutmeg","ground allspice","ground mustard","ground turmeric","ground paprika","ground pepper"],{fridge:365,freezer:365,pantry:365}],
+  // --- Liquid/nut OVERRIDES first (stop "butter"/"fish"/"frank" from stealing the match) ---
+  [["fish sauce"],{fridge:365,freezer:0,pantry:365}],
+  [["peanut butter powder","powdered peanut","pb2","pb fit","peanut powder"],{fridge:365,freezer:0,pantry:180}],
+  [["peanut butter","almond butter","cashew butter","nut butter"],{fridge:180,freezer:0,pantry:90}],
   // --- Dairy ---
   [["evaporated","condensed milk","sweetened condensed"],{fridge:5,freezer:0,pantry:1}],
   [["coconut milk","coconut cream"],{fridge:6,freezer:30,pantry:1}],
@@ -1107,7 +1126,7 @@ const FRESH=[
   [["chicken","whole chicken"],{fridge:2,freezer:270,pantry:0}],
   [["ground beef","ground pork","ground turkey","ground chicken","minced meat"],{fridge:2,freezer:120,pantry:0}],
   [["beef","pork","ribs","chuck","chop","steak","lamb"],{fridge:3,freezer:180,pantry:0}],
-  [["hotdog","sausage","frank"],{fridge:7,freezer:60,pantry:1}],
+  [["hotdog","hot dog","sausage","frankfurter","wiener"],{fridge:7,freezer:60,pantry:1}],
   [["bacon"],{fridge:7,freezer:30,pantry:1}],
   [["spam","canned meat","luncheon"],{fridge:4,freezer:30,pantry:1}],
   [["tofu"],{fridge:4,freezer:120,pantry:1}],
@@ -1489,10 +1508,10 @@ function renderNotes(){
   const host=$("#view-notes");
   if(!state.notes.length){ host.innerHTML=emptyHTML("📝","No notes yet. Tap ＋ to jot one down."); return; }
   host.innerHTML=state.notes.map(n=>`
-    <div class="note">
+    <div class="note" data-editnote="${n.id}">
       <button class="ndel" data-delnote="${n.id}">🗑️</button>
       <div class="ntext">${escapeHtml(n.text)}</div>
-      <div class="nmeta">${new Date(n.ts).toLocaleString()}</div>
+      <div class="nmeta">${new Date(n.ts).toLocaleString()} · tap to edit</div>
     </div>`).join("");
 }
 
@@ -1544,6 +1563,8 @@ document.addEventListener("click",e=>{
   if(edit){ openItemSheet(edit.dataset.edit); return; }
   const dn=e.target.closest("[data-delnote]");
   if(dn){ if(confirm("Delete this note?")){ state.notes=state.notes.filter(n=>n.id!==dn.dataset.delnote); save(); renderNotes(); } return; }
+  const en=e.target.closest("[data-editnote]");
+  if(en){ openNoteSheet(en.dataset.editnote); return; }
 });
 
 function getItem(id){ return state.items.find(i=>i.id===id); }
@@ -1754,13 +1775,29 @@ $("#btnDeleteItem").addEventListener("click",()=>{
    NOTES SHEET
    ============================================================ */
 const noteScrim=$("#noteScrim");
-function openNoteSheet(){ $("#noteText").value=""; noteScrim.classList.add("on"); setTimeout(()=>$("#noteText").focus(),150); }
-$("#btnCancelNote").addEventListener("click",()=>noteScrim.classList.remove("on"));
-noteScrim.addEventListener("click",e=>{ if(e.target===noteScrim) noteScrim.classList.remove("on"); });
+let editingNote=null;
+function openNoteSheet(id){
+  editingNote=id||null;
+  const n=id?state.notes.find(x=>x.id===id):null;
+  $("#noteText").value=n?n.text:"";
+  const title=$("#noteSheetTitle"); if(title) title.textContent=n?"Edit Note":"New Note";
+  noteScrim.classList.add("on"); setTimeout(()=>$("#noteText").focus(),150);
+}
+$("#btnCancelNote").addEventListener("click",()=>{ editingNote=null; noteScrim.classList.remove("on"); });
+noteScrim.addEventListener("click",e=>{ if(e.target===noteScrim){ editingNote=null; noteScrim.classList.remove("on"); } });
 $("#btnSaveNote").addEventListener("click",()=>{
   if(!requireEdit()) return;
-  const t=$("#noteText").value.trim(); if(!t){ noteScrim.classList.remove("on"); return; }
-  state.notes.unshift({id:uid(),text:t,ts:Date.now()}); save(); renderNotes(); noteScrim.classList.remove("on"); toast("📝 Note saved","good");
+  const t=$("#noteText").value.trim();
+  if(!t){ if(editingNote){ state.notes=state.notes.filter(n=>n.id!==editingNote); save(); renderNotes(); } editingNote=null; noteScrim.classList.remove("on"); return; }
+  if(editingNote){
+    const n=state.notes.find(x=>x.id===editingNote);
+    if(n){ n.text=t; n.ts=Date.now(); }
+    toast("📝 Note updated","good");
+  }else{
+    state.notes.unshift({id:uid(),text:t,ts:Date.now()});
+    toast("📝 Note saved","good");
+  }
+  editingNote=null; save(); renderNotes(); noteScrim.classList.remove("on");
 });
 
 /* ============================================================
@@ -2223,7 +2260,7 @@ function renderCatList(){
       <button data-cup="${i}" title="Up">▲</button>
       <button data-cdown="${i}" title="Down">▼</button>
       <button data-crename="${i}" title="Rename">✏️</button>
-      <button class="cdel" data-cdelete="${i}" title="Delete">✕</button>
+      <button class="cdel" data-cdelete="${i}" title="Delete">🗑️</button>
     </div>`;
   }).join("");
 }
