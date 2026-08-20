@@ -686,16 +686,21 @@ function restoreOldCats(){
   if(state.catsV===CATS_V) return false;
   let touched=false;
   state.items.forEach(it=>{ if(REV_CAT[it.category] && REV_CAT[it.category]!==it.category){ it.category=REV_CAT[it.category]; touched=true; } });
-  // Reset the category list back to the original set (custom categories still in use are re-added below).
-  state.cats = DEFAULT_CATS.map(([name,icon])=>({name,icon}));
+  // Reset the category LIST to the original 15 ONLY for a pantry we actually restored (an existing one).
+  // A brand-new pantry is left untouched so a new user starts blank and builds their own.
+  if(touched) state.cats = DEFAULT_CATS.map(([name,icon])=>({name,icon}));
   state.catsV = CATS_V;
   if(touched) _migratedThisLoad=true;
   return touched;
 }
 function rebuildCats(){
-  if(!state.cats || !state.cats.length) state.cats = DEFAULT_CATS.map(([name,icon])=>({name,icon}));
   restoreOldCats();     // ONE-TIME fix of the bad auto-move (idempotent via state.catsV)
-  syncCatsFromItems();  // keep any custom category an item still references
+  if(!state.cats || !state.cats.length){
+    // New ONLINE pantry starts blank (just "Other") so each user builds their OWN categories;
+    // the offline single-device app keeps the full starter set.
+    state.cats = CLOUD ? [{name:"Other",icon:"📦"}] : DEFAULT_CATS.map(([name,icon])=>({name,icon}));
+  }
+  syncCatsFromItems();  // categories then grow automatically from whatever items the user adds
   CAT_ORDER=state.cats.map(c=>c.name);
   CAT_ICON=Object.fromEntries(state.cats.map(c=>[c.name,c.icon]));
 }
